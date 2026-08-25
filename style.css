@@ -1,0 +1,81 @@
+/* Custom Variable Palette */
+:root {
+  --bg-color: #FFF0C9;
+  --accent-color: #243B8F;
+}
+
+/* Card transition states */
+.card {
+  display: none;
+  opacity: 0;
+  transform: translateY(20px) scale(0.98);
+  transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+}
+
+.card.active-card {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Heartbeat animation for welcome screen */
+@keyframes heartbeat {
+  0% { transform: scale(1); }
+  15% { transform: scale(1.1); }
+  30% { transform: scale(1); }
+  45% { transform: scale(1.1); }
+  60% { transform: scale(1); }
+  100% { transform: scale(1); }
+}
+
+.animate-heartbeat {
+  animation: heartbeat 2s infinite ease-in-out;
+  transform-origin: center;
+}
+
+/* Custom Neo-brutalist buttons style */
+.btn-custom {
+  background-color: var(--accent-color);
+  color: var(--bg-color);
+  border: 2px solid var(--accent-color);
+  box-shadow: 4px 4px 0px 0px rgba(36, 59, 143, 0.3);
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.btn-custom:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px rgba(36, 59, 143, 0.4);
+}
+
+.btn-custom:active {
+  transform: translate(1px, 1px);
+  box-shadow: 2px 2px 0px 0px rgba(36, 59, 143, 0.3);
+}
+
+/* Floating background books styling */
+.floating-book {
+  position: absolute;
+  bottom: -40px;
+  color: rgba(36, 59, 143, 0.12); /* transparent navy blue */
+  user-select: none;
+  pointer-events: none;
+  z-index: 0;
+  animation: floatUp 7s linear forwards;
+}
+
+@keyframes floatUp {
+  0% {
+    transform: translateY(0) translateX(0) scale(0.6) rotate(0deg);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.8;
+  }
+  90% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-110vh) translateX(var(--random-x)) scale(var(--random-scale)) rotate(var(--random-rot));
+    opacity: 0;
+  }
+}

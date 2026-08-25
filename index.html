@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hi Himi ❤️</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        customBg: '#FFF0C9',
+                        customAccent: '#243B8F',
+                    },
+                    fontFamily: {
+                        quicksand: ['Quicksand', 'sans-serif'],
+                        sacramento: ['Sacramento', 'cursive'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&family=Sacramento&display=swap" rel="stylesheet">
+    <!-- Custom Style Sheet -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Confetti Library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+<body class="bg-customBg text-customAccent font-quicksand min-h-screen flex flex-col justify-between overflow-hidden relative">
+
+    <!-- Floating books container -->
+    <div id="books-container" class="absolute inset-0 pointer-events-none z-0"></div>
+
+    <!-- Main Container -->
+    <main class="flex-grow flex items-center justify-center p-4 z-10">
+        <div id="card-wrapper" class="w-full max-w-lg bg-[#fff8e7] border-4 border-customAccent rounded-3xl p-8 md:p-12 shadow-[8px_8px_0px_0px_rgba(36,59,143,1)] relative transition-all duration-500 transform hover:-translate-y-1">
+            
+            <!-- Card 1: Welcome -->
+            <div id="card-1" class="card active-card flex flex-col items-center text-center space-y-6">
+                <div class="heart-pulse-container my-4">
+                    <svg class="w-24 h-24 text-customAccent animate-heartbeat" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                </div>
+                <h1 class="font-sacramento text-6xl md:text-7xl font-bold tracking-wide">hi, Himi</h1>
+                <p class="text-lg font-semibold max-w-sm">I wrote a small letter just for you. Would you like to open it?</p>
+                <button onclick="nextCard(2)" class="btn-custom group flex items-center gap-2 bg-customAccent text-customBg px-8 py-3.5 rounded-full font-bold text-lg shadow-[4px_4px_0px_0px_#FFF0C9] border-2 border-customAccent hover:bg-opacity-90 active:translate-y-0.5 active:shadow-[2px_2px_0px_0px_#FFF0C9] transition-all">
+                    Open letter 
+                    <span class="inline-block transition-transform duration-300 group-hover:rotate-12">💌</span>
+                </button>
+            </div>
+
+            <!-- Card 2: Appreciation & Highlight -->
+            <div id="card-2" class="card hidden flex flex-col items-center text-center space-y-6">
+                <div class="w-20 h-20 text-customAccent flex items-center justify-center bg-customBg rounded-full border-2 border-customAccent p-4">
+                    <!-- Beach/Sun Icon -->
+                    <svg class="w-12 h-12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5 21a2 2 0 012-2h10a2 2 0 012 2"/>
+                    </svg>
+                </div>
+                <h2 class="text-3xl font-bold">What you mean to me...</h2>
+                <div class="space-y-4 text-base md:text-lg leading-relaxed">
+                    <p>I truly appreciate how incredibly caring you are. You look out for me in ways that mean more than I can express.</p>
+                    <p>Honestly, you are the absolute <span class="font-bold underline decoration-wavy decoration-customAccent">highlight of the office</span> every single day.</p>
+                    <p>And spending those peaceful hours at the beach with you? It's like a proper battery recharger for me. 🔋🌊</p>
+                </div>
+                <button onclick="nextCard(3)" class="btn-custom flex items-center gap-2 bg-customAccent text-customBg px-8 py-3 rounded-full font-bold text-lg transition-all">
+                    Next page ➔
+                </button>
+            </div>
+
+            <!-- Card 3: Quirks -->
+            <div id="card-3" class="card hidden flex flex-col items-center text-center space-y-6">
+                <div class="w-20 h-20 text-customAccent flex items-center justify-center bg-customBg rounded-full border-2 border-customAccent p-4">
+                    <!-- Playful Wink/Face Icon -->
+                    <svg class="w-12 h-12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <h2 class="text-3xl font-bold">Your quirks...</h2>
+                <div class="space-y-4 text-base md:text-lg leading-relaxed">
+                    <p>I love the faces you make for literally anything I say—whether it is eating medicines, wearing glasses, not having coffee, or completing your meal! 😂</p>
+                </div>
+                <button onclick="nextCard(4)" class="btn-custom flex items-center gap-2 bg-customAccent text-customBg px-8 py-3 rounded-full font-bold text-lg transition-all">
+                    Continue ➔
+                </button>
+            </div>
+
+            <!-- Card 4: Proposal -->
+            <div id="card-4" class="card hidden flex flex-col items-center text-center space-y-6">
+                <div class="w-20 h-20 text-customAccent flex items-center justify-center bg-customBg rounded-full border-2 border-customAccent p-4 relative">
+                    <!-- Heart Icon -->
+                    <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                </div>
+                <h2 class="text-3xl font-bold font-sacramento text-4xl">All said and done...</h2>
+                <div class="space-y-4 text-base md:text-lg leading-relaxed">
+                    <p>the most important question i wanna ask is</p>
+                    <p class="font-bold text-3xl mt-4">date me? 🥺</p>
+                </div>
+                
+                <!-- Yes/No Action Buttons -->
+                <div class="flex flex-row items-center justify-center gap-6 w-full pt-4 relative min-h-[80px]">
+                    <button id="yes-btn" onclick="celebrate()" class="bg-customAccent text-customBg px-8 py-3.5 rounded-full font-bold text-xl shadow-[4px_4px_0px_0px_#FFF0C9] border-2 border-customAccent hover:scale-105 active:scale-95 transition-all">
+                        Yes! ❤️
+                    </button>
+                    <button id="no-btn" class="bg-transparent text-customAccent border-2 border-customAccent px-8 py-3.5 rounded-full font-bold text-lg hover:bg-customAccent hover:text-customBg transition-all duration-200">
+                        No
+                    </button>
+                </div>
+            </div>
+
+            <!-- Card 5: Success Celebration -->
+            <div id="card-5" class="card hidden flex flex-col items-center text-center space-y-6">
+                <div class="heart-pulse-container my-2">
+                    <svg class="w-16 h-16 text-customAccent animate-bounce" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                </div>
+                <h1 class="font-sacramento text-6xl md:text-7xl font-bold tracking-wide">YAY! 🎉</h1>
+                <img src="6C102E43-814E-4BC9-80C9-4CD278734D4E.JPG" alt="Special memory" class="w-56 h-56 object-cover rounded-2xl border-4 border-customAccent shadow-[4px_4px_0px_0px_rgba(36,59,143,1)] my-2">
+                <p class="text-xl font-bold max-w-sm">You just made me the happiest person! ❤️</p>
+                <p class="text-md max-w-xs opacity-90">Get ready for more beach dates, office laughs, and endless memories. Can't wait! 🏖️✨</p>
+                <p class="text-sm font-semibold mt-4 italic opacity-80">(P.S. I will miss u a lot, come back soon)</p>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-6 text-sm font-semibold opacity-75 z-10">
+        made with ❤️ for Himi
+    </footer>
+
+    <!-- JS script -->
+    <script src="script.js"></script>
+</body>
+</html>
