@@ -73,28 +73,19 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function initApp() {
-    const isConfigured = isSupabaseConfigured();
-    const banner = document.getElementById('setup-banner');
+    // Render starter items immediately for seamless feel
+    currentItems = [...STARTER_ITEMS];
+    renderItems();
 
-    if (!isConfigured) {
-        if (banner) banner.classList.remove('hidden');
-        currentItems = [...STARTER_ITEMS];
-        renderItems();
-        return;
-    } else {
-        if (banner) banner.classList.add('hidden');
+    try {
+        const client = await getSupabaseClient();
+        if (client) {
+            await fetchBucketList();
+            setupRealtimeSubscription(client);
+        }
+    } catch (e) {
+        console.warn('Supabase initialization error:', e);
     }
-
-    const client = initSupabase();
-    if (!client) {
-        if (banner) banner.classList.remove('hidden');
-        currentItems = [...STARTER_ITEMS];
-        renderItems();
-        return;
-    }
-
-    await fetchBucketList();
-    setupRealtimeSubscription(client);
 }
 
 // Fetch items from Supabase
@@ -565,25 +556,6 @@ function fireCheckConfetti() {
     }
 }
 
-// Save credentials from the setup banner
-function handleSaveCredentials() {
-    const url = document.getElementById('setup-url').value.trim();
-    const key = document.getElementById('setup-key').value.trim();
-
-    if (!url || !key) {
-        alert('Please enter both the Supabase URL and the Anon Public Key.');
-        return;
-    }
-
-    const client = saveSupabaseCredentials(url, key);
-    if (client) {
-        document.getElementById('setup-banner').classList.add('hidden');
-        fetchBucketList();
-        setupRealtimeSubscription(client);
-    } else {
-        alert('Credentials saved, but could not initialize client. Please check the URL format.');
-    }
-}
 
 // Basic HTML escaping
 function escapeHtml(str) {

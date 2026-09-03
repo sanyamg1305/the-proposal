@@ -2,55 +2,66 @@
 // Supabase Configuration for Himi & Sanyam Bucket List
 // ==============================================================================
 
-// Option 1: Paste your Supabase project credentials directly here
-const DEFAULT_SUPABASE_URL = ''; // e.g. 'https://xyzcompany.supabase.co'
-const DEFAULT_SUPABASE_ANON_KEY = ''; // e.g. 'eyJhbGciOiJIUzI1NiIsInR5cCI6...'
+// Hardcoded fallback (optional if using Vercel Environment Variables)
+const DEFAULT_SUPABASE_URL = '';
+const DEFAULT_SUPABASE_ANON_KEY = '';
 
-// Check if credentials exist in localStorage (allows setting via the web UI without editing code)
-const getStoredConfig = () => {
+let _supabaseClient = null;
+let _config = null;
+
+// Read config from /api/config (Vercel env vars), localStorage, or hardcoded constants
+async function resolveSupabaseConfig() {
+    if (_config) return _config;
+
+    // 1. Try Vercel Serverless endpoint /api/config
+    try {
+        const response = await fetch('/api/config');
+        if (response.ok) {
+            const data = await response.json();
+            if (data.url && data.anonKey && data.url.startsWith('http')) {
+                _config = { url: data.url.trim(), anonKey: data.anonKey.trim() };
+                return _config;
+            }
+        }
+    } catch (e) {
+        // Local preview or non-Vercel environment
+    }
+
+    // 2. Try localStorage
     try {
         const storedUrl = localStorage.getItem('supabase_project_url');
         const storedKey = localStorage.getItem('supabase_anon_key');
-        if (storedUrl && storedKey) {
-            return { url: storedUrl, anonKey: storedKey };
+        if (storedUrl && storedKey && storedUrl.startsWith('http')) {
+            _config = { url: storedUrl.trim(), anonKey: storedKey.trim() };
+            return _config;
         }
     } catch (e) {
-        console.warn('localStorage access failed:', e);
+        console.warn('localStorage access error:', e);
     }
-    return {
-        url: DEFAULT_SUPABASE_URL,
-        anonKey: DEFAULT_SUPABASE_ANON_KEY
-    };
-};
 
-let _supabaseClient = null;
+    // 3. Fallback to hardcoded constants
+    if (DEFAULT_SUPABASE_URL && DEFAULT_SUPABASE_ANON_KEY && DEFAULT_SUPABASE_URL.startsWith('http')) {
+        _config = { url: DEFAULT_SUPABASE_URL.trim(), anonKey: DEFAULT_SUPABASE_ANON_KEY.trim() };
+        return _config;
+    }
 
-function initSupabase() {
-    const config = getStoredConfig();
-    const hasValidConfig = config.url && 
-                           config.anonKey && 
-                           config.url.startsWith('http') && 
-                           !config.url.includes('YOUR_SUPABASE');
+    return null;
+}
 
-    if (!hasValidConfig) {
+// Asynchronously initialize Supabase client
+async function getSupabaseClient() {
+    if (_supabaseClient) return _supabaseClient;
+
+    const config = await resolveSupabaseConfig();
+    if (!config || !window.supabase) {
         return null;
     }
 
-    if (!_supabaseClient && window.supabase) {
-        _supabaseClient = window.supabase.createClient(config.url, config.anonKey);
-    }
+    _supabaseClient = window.supabase.createClient(config.url, config.anonKey);
     return _supabaseClient;
 }
 
-function saveSupabaseCredentials(url, anonKey) {
-    if (!url || !anonKey) return false;
-    localStorage.setItem('supabase_project_url', url.trim());
-    localStorage.setItem('supabase_anon_key', anonKey.trim());
-    _supabaseClient = null; // force re-initialization
-    return initSupabase();
-}
-
-function isSupabaseConfigured() {
-    const config = getStoredConfig();
-    return !!(config.url && config.anonKey && config.url.startsWith('http') && !config.url.includes('YOUR_SUPABASE'));
+// Synchronous access if already resolved
+function initSupabase() {
+    return _supabaseClient;
 }
