@@ -1,5 +1,5 @@
 // ==============================================================================
-// Himi & Sanyam Bucket List - JavaScript Interactivity & Supabase Sync
+// Himi & Sanyam Bucket List & Recurring Rituals - JavaScript & Supabase Sync
 // ==============================================================================
 
 let currentItems = [];
@@ -45,20 +45,26 @@ function createFloatingBook() {
 
 setInterval(createFloatingBook, 600);
 
-// Starter items used when Supabase is not connected yet or table is empty
+// Starter items (including one-time wishes & recurring rituals)
 const STARTER_ITEMS = [
-    { id: '1', title: 'Watch a beach sunset together until the stars come out', category: 'Beach', is_completed: false },
-    { id: '2', title: 'A weekend beach getaway with zero office stress', category: 'Beach', is_completed: false },
-    { id: '3', title: 'Late night beach drive with good music & windows down', category: 'Beach', is_completed: false },
-    { id: '4', title: 'Undercover office coffee date without anyone noticing', category: 'Office', is_completed: false },
-    { id: '5', title: 'Get Himi to take her medicines & wear her glasses without making a funny face 😂', category: 'Office', is_completed: false },
-    { id: '6', title: 'Have a peaceful lunch date without rushing back to work', category: 'Office', is_completed: false },
-    { id: '7', title: 'Bookstore date where we pick out books for each other', category: 'Cozy', is_completed: false },
-    { id: '8', title: 'Rainy day movie marathon with hot chocolate & blankets', category: 'Cozy', is_completed: false },
-    { id: '9', title: 'Cook a chaotic and delicious dinner together from scratch', category: 'Cozy', is_completed: false },
-    { id: '10', title: 'Take goofy photobooth pictures together', category: 'Cozy', is_completed: false },
-    { id: '11', title: 'Our first flight & trip together to a brand new city', category: 'Adventure', is_completed: false },
-    { id: '12', title: 'Fill a memory scrapbook with our tickets, notes, and photos', category: 'Adventure', is_completed: false }
+    // One-time wishes
+    { id: '1', title: 'Watch a beach sunset together until the stars come out', category: 'Beach', is_completed: false, is_recurring: false, completion_count: 0 },
+    { id: '2', title: 'A weekend beach getaway with zero office stress', category: 'Beach', is_completed: false, is_recurring: false, completion_count: 0 },
+    { id: '3', title: 'Late night beach drive with good music & windows down', category: 'Beach', is_completed: false, is_recurring: false, completion_count: 0 },
+    { id: '4', title: 'Undercover office coffee date without anyone noticing', category: 'Office', is_completed: false, is_recurring: false, completion_count: 0 },
+    { id: '5', title: 'Have a peaceful lunch date without rushing back to work', category: 'Office', is_completed: false, is_recurring: false, completion_count: 0 },
+    { id: '6', title: 'Bookstore date where we pick out books for each other', category: 'Cozy', is_completed: false, is_recurring: false, completion_count: 0 },
+    { id: '7', title: 'Rainy day movie marathon with hot chocolate & blankets', category: 'Cozy', is_completed: false, is_recurring: false, completion_count: 0 },
+    { id: '8', title: 'Cook a chaotic and delicious dinner together from scratch', category: 'Cozy', is_completed: false, is_recurring: false, completion_count: 0 },
+    { id: '9', title: 'Take goofy photobooth pictures together', category: 'Cozy', is_completed: false, is_recurring: false, completion_count: 0 },
+    { id: '10', title: 'Our first flight & trip together to a brand new city', category: 'Adventure', is_completed: false, is_recurring: false, completion_count: 0 },
+    { id: '11', title: 'Fill a memory scrapbook with our tickets, notes, and photos', category: 'Adventure', is_completed: false, is_recurring: false, completion_count: 0 },
+
+    // Recurring couple rituals
+    { id: '12', title: 'Weekly beach date to recharge our batteries 🏖️🔋', category: 'Beach', is_completed: false, is_recurring: true, recurrence_interval: 'Weekly', completion_count: 0 },
+    { id: '13', title: 'Daily goofy face & smile check across the office 🏢😂', category: 'Office', is_completed: false, is_recurring: true, recurrence_interval: 'Daily', completion_count: 0 },
+    { id: '14', title: 'Remind Himi to take medicines & wear glasses without complaining 💊👓', category: 'Office', is_completed: false, is_recurring: true, recurrence_interval: 'Daily', completion_count: 0 },
+    { id: '15', title: 'Monthly cozy bookstore & new coffee shop date 📚☕', category: 'Cozy', is_completed: false, is_recurring: true, recurrence_interval: 'Monthly', completion_count: 0 }
 ];
 
 // Initialize on page load
@@ -72,7 +78,6 @@ async function initApp() {
 
     if (!isConfigured) {
         if (banner) banner.classList.remove('hidden');
-        // Render starter items in preview mode
         currentItems = [...STARTER_ITEMS];
         renderItems();
         return;
@@ -110,14 +115,12 @@ async function fetchBucketList() {
 
         if (error) {
             console.error('Error fetching bucket list:', error);
-            // If table doesn't exist or permissions error, fall back to local preview
             if (currentItems.length === 0) {
                 currentItems = [...STARTER_ITEMS];
             }
         } else if (data && data.length > 0) {
             currentItems = data;
         } else if (data && data.length === 0) {
-            // Seed starter items if table is brand new
             await seedStarterItems(client);
             return;
         }
@@ -131,10 +134,13 @@ async function fetchBucketList() {
 // Seed starter items into Supabase
 async function seedStarterItems(client) {
     try {
-        const itemsToInsert = STARTER_ITEMS.map(({ title, category, is_completed }) => ({
+        const itemsToInsert = STARTER_ITEMS.map(({ title, category, is_completed, is_recurring, recurrence_interval, completion_count }) => ({
             title,
             category,
-            is_completed
+            is_completed,
+            is_recurring: !!is_recurring,
+            recurrence_interval: recurrence_interval || null,
+            completion_count: completion_count || 0
         }));
         const { data, error } = await client
             .from('bucket_list')
@@ -171,20 +177,27 @@ function setupRealtimeSubscription(client) {
     }
 }
 
-// Toggle Complete
+// Toggle Complete for one-time bucket items
 async function toggleComplete(id, currentStatus) {
+    const item = currentItems.find(i => i.id == id);
+    if (item && item.is_recurring) {
+        // If it's recurring, route to increment
+        incrementRecurring(id);
+        return;
+    }
+
     const newStatus = !currentStatus;
 
     // Optimistic UI update
-    currentItems = currentItems.map(item => {
-        if (item.id == id) {
+    currentItems = currentItems.map(i => {
+        if (i.id == id) {
             return {
-                ...item,
+                ...i,
                 is_completed: newStatus,
                 completed_at: newStatus ? new Date().toISOString() : null
             };
         }
-        return item;
+        return i;
     });
     renderItems();
 
@@ -206,7 +219,7 @@ async function toggleComplete(id, currentStatus) {
 
         if (error) {
             console.error('Update error:', error);
-            fetchBucketList(); // rollback on error
+            fetchBucketList();
         }
     } catch (err) {
         console.error('Update exception:', err);
@@ -214,15 +227,75 @@ async function toggleComplete(id, currentStatus) {
     }
 }
 
-// Add Item
+// Increment recurring ritual check-in count
+async function incrementRecurring(id, event) {
+    if (event) event.stopPropagation();
+
+    let newCount = 1;
+    currentItems = currentItems.map(i => {
+        if (i.id == id) {
+            newCount = (i.completion_count || 0) + 1;
+            return {
+                ...i,
+                is_completed: true,
+                completion_count: newCount,
+                completed_at: new Date().toISOString()
+            };
+        }
+        return i;
+    });
+    renderItems();
+    fireCheckConfetti();
+
+    const client = initSupabase();
+    if (!client) return;
+
+    try {
+        const { error } = await client
+            .from('bucket_list')
+            .update({
+                is_completed: true,
+                completion_count: newCount,
+                completed_at: new Date().toISOString()
+            })
+            .eq('id', id);
+
+        if (error) {
+            console.error('Recurring update error:', error);
+            fetchBucketList();
+        }
+    } catch (err) {
+        console.error('Recurring update exception:', err);
+        fetchBucketList();
+    }
+}
+
+// Toggle Recurrence dropdown in Add Form
+function toggleRecurrenceSelect() {
+    const isRecCheckbox = document.getElementById('item-is-recurring');
+    const intervalSelect = document.getElementById('item-interval');
+    if (isRecCheckbox && intervalSelect) {
+        if (isRecCheckbox.checked) {
+            intervalSelect.classList.remove('hidden');
+        } else {
+            intervalSelect.classList.add('hidden');
+        }
+    }
+}
+
+// Add Item (handles both one-time and recurring items)
 async function handleAddItem(event) {
     event.preventDefault();
     const titleInput = document.getElementById('item-title');
     const categorySelect = document.getElementById('item-category');
+    const isRecCheckbox = document.getElementById('item-is-recurring');
+    const intervalSelect = document.getElementById('item-interval');
     const submitBtn = document.getElementById('add-submit-btn');
 
     const title = titleInput.value.trim();
     const category = categorySelect.value;
+    const is_recurring = isRecCheckbox ? isRecCheckbox.checked : false;
+    const recurrence_interval = is_recurring && intervalSelect ? intervalSelect.value : null;
 
     if (!title) return;
 
@@ -235,7 +308,14 @@ async function handleAddItem(event) {
         try {
             const { data, error } = await client
                 .from('bucket_list')
-                .insert([{ title, category, is_completed: false }])
+                .insert([{
+                    title,
+                    category,
+                    is_completed: false,
+                    is_recurring,
+                    recurrence_interval,
+                    completion_count: 0
+                }])
                 .select();
 
             if (error) {
@@ -253,14 +333,20 @@ async function handleAddItem(event) {
             id: 'custom-' + Date.now(),
             title,
             category,
-            is_completed: false
+            is_completed: false,
+            is_recurring,
+            recurrence_interval,
+            completion_count: 0
         };
         currentItems.push(newItem);
     }
 
     titleInput.value = '';
+    if (isRecCheckbox) isRecCheckbox.checked = false;
+    if (intervalSelect) intervalSelect.classList.add('hidden');
+
     submitBtn.disabled = false;
-    submitBtn.innerText = 'Add Wish ❤️';
+    submitBtn.innerText = 'Add Item ❤️';
     toggleAddForm();
     renderItems();
     fireCheckConfetti();
@@ -269,7 +355,7 @@ async function handleAddItem(event) {
 // Delete Item
 async function deleteItem(id, event) {
     event.stopPropagation();
-    if (!confirm('Remove this wish from our bucket list?')) return;
+    if (!confirm('Remove this item from our list?')) return;
 
     currentItems = currentItems.filter(item => item.id != id);
     renderItems();
@@ -314,15 +400,20 @@ function filterCategory(category) {
     renderItems();
 }
 
-// Render Bucket List Items & Update Progress
+// Render Bucket List & Recurring Items
 function renderItems() {
     const listContainer = document.getElementById('items-list');
     const emptyState = document.getElementById('empty-state');
 
     // Filter items
-    const filtered = activeCategory === 'All' 
-        ? currentItems 
-        : currentItems.filter(i => i.category.toLowerCase() === activeCategory.toLowerCase());
+    let filtered = [];
+    if (activeCategory === 'All') {
+        filtered = currentItems;
+    } else if (activeCategory === 'Recurring') {
+        filtered = currentItems.filter(i => !!i.is_recurring);
+    } else {
+        filtered = currentItems.filter(i => (i.category || '').toLowerCase() === activeCategory.toLowerCase());
+    }
 
     updateProgressBar();
 
@@ -336,8 +427,54 @@ function renderItems() {
 
     listContainer.innerHTML = filtered.map(item => {
         const isDone = !!item.is_completed;
+        const isRecurring = !!item.is_recurring;
+        const count = item.completion_count || 0;
         const categoryBadge = getCategoryBadge(item.category);
 
+        if (isRecurring) {
+            return `
+                <div class="group flex items-center justify-between p-4 rounded-2xl border-2 border-customAccent bg-white hover:bg-customBg/40 transition-all duration-200 shadow-[3px_3px_0px_0px_#243B8F]">
+                    <div class="flex items-center gap-3.5 flex-grow pr-2">
+                        <!-- Recurring Icon Badge -->
+                        <div class="w-8 h-8 rounded-xl bg-purple-100 border-2 border-customAccent flex items-center justify-center flex-shrink-0 text-sm">
+                            🔄
+                        </div>
+
+                        <!-- Title & Details -->
+                        <div class="flex flex-col">
+                            <span class="font-bold text-sm md:text-base leading-snug text-customAccent">
+                                ${escapeHtml(item.title)}
+                            </span>
+                            <div class="flex flex-wrap items-center gap-2 mt-1">
+                                <span class="text-xs font-semibold px-2 py-0.5 rounded-full border border-customAccent bg-customBg/80 text-customAccent">
+                                    ${categoryBadge}
+                                </span>
+                                <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-800 border border-purple-300">
+                                    🔄 ${item.recurrence_interval || 'Weekly'} Ritual
+                                </span>
+                                <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                                    🔥 Done ${count} ${count === 1 ? 'time' : 'times'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="flex items-center gap-2">
+                        <button onclick="incrementRecurring('${item.id}', event)" class="bg-customAccent text-customBg px-3 py-1.5 rounded-full font-bold text-xs hover:scale-105 active:scale-95 transition-all shadow-[2px_2px_0px_0px_#FFF0C9] flex items-center gap-1">
+                            <span>+1</span> Check-in ✨
+                        </button>
+                        <button onclick="deleteItem('${item.id}', event)" title="Remove item" class="opacity-30 hover:opacity-100 hover:text-red-600 transition-opacity p-2 rounded-lg">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Standard One-time Bucket Item
         return `
             <div onclick="toggleComplete('${item.id}', ${isDone})" class="group cursor-pointer flex items-center justify-between p-4 rounded-2xl border-2 border-customAccent transition-all duration-200 ${isDone ? 'bg-amber-100/60 opacity-80' : 'bg-white hover:bg-customBg/50 hover:-translate-y-0.5 shadow-[3px_3px_0px_0px_#243B8F]'}">
                 <div class="flex items-center gap-3.5 flex-grow pr-2">
@@ -387,8 +524,11 @@ function getCategoryBadge(cat) {
 
 // Progress Bar & Cheer Messages
 function updateProgressBar() {
-    const total = currentItems.length;
-    const completed = currentItems.filter(i => i.is_completed).length;
+    // Only one-time items or items checked count towards total completion progress
+    const oneTimeItems = currentItems.filter(i => !i.is_recurring);
+    const total = oneTimeItems.length;
+    const completed = oneTimeItems.filter(i => i.is_completed).length;
+    const recurringChecks = currentItems.filter(i => i.is_recurring).reduce((sum, i) => sum + (i.completion_count || 0), 0);
     const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
 
     const bar = document.getElementById('progress-bar');
@@ -399,12 +539,12 @@ function updateProgressBar() {
     if (text) text.innerText = `${completed} / ${total} (${percentage}%)`;
 
     if (cheer) {
-        if (completed === 0) {
-            cheer.innerText = "Check off memories as we make them! 💕";
+        if (completed === 0 && recurringChecks === 0) {
+            cheer.innerText = "Check off memories and recurring rituals as we make them! 💕";
         } else if (percentage < 30) {
-            cheer.innerText = "Off to a wonderful start! Every memory counts ✨";
+            cheer.innerText = `Off to a wonderful start! (${recurringChecks} recurring rituals completed 🔥)`;
         } else if (percentage < 70) {
-            cheer.innerText = "Look at all the beautiful chapters we've lived! 🏖️📖";
+            cheer.innerText = `Look at all our memories and ${recurringChecks} ritual check-ins! 🏖️📖`;
         } else if (percentage < 100) {
             cheer.innerText = "Almost every dream fulfilled together! ❤️";
         } else {
@@ -420,7 +560,7 @@ function fireCheckConfetti() {
             particleCount: 50,
             spread: 60,
             origin: { y: 0.7 },
-            colors: ['#243B8F', '#FFF0C9', '#E74C3C', '#2ECC71']
+            colors: ['#243B8F', '#FFF0C9', '#E74C3C', '#2ECC71', '#9B59B6']
         });
     }
 }
