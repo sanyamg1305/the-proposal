@@ -63,6 +63,8 @@ select * from (values
     ('Take goofy photobooth pictures together', 'Cozy', false, false, null, 0),
     ('Our first flight & trip together to a brand new city', 'Adventure', false, false, null, 0),
     ('Fill a memory scrapbook with our tickets, notes, and photos', 'Adventure', false, false, null, 0),
+    ('Take a spontaneous day off together with zero plans', 'General', false, false, null, 0),
+    ('Write each other love letters to open on our anniversary', 'General', false, false, null, 0),
 
     -- Recurring couple rituals & habits
     ('Weekly beach date to recharge our batteries 🏖️🔋', 'Beach', false, true, 'Weekly', 0),
