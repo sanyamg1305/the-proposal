@@ -92,3 +92,46 @@
   border-radius: 4px;
 }
 
+/* Ticket notch cutouts */
+.ticket-card {
+  position: relative;
+  background: #FFFDF7;
+}
+
+.ticket-notch-left, .ticket-notch-right {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: #FFF0C9;
+  z-index: 15;
+}
+
+.ticket-notch-left {
+  left: -11px;
+  border-right: 3px solid #243B8F;
+}
+
+.ticket-notch-right {
+  right: -11px;
+  border-left: 3px solid #243B8F;
+}
+
+/* Redeemed vintage stamp effect */
+.stamp-redeemed {
+  display: inline-block;
+  padding: 0.35rem 1.25rem;
+  text-transform: uppercase;
+  font-weight: 900;
+  color: #DC2626;
+  border: 3px dashed #DC2626;
+  border-radius: 12px;
+  transform: rotate(-10deg);
+  background: rgba(254, 242, 242, 0.85);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  letter-spacing: 0.15em;
+}
+
+

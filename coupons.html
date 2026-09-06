@@ -70,43 +70,41 @@
             </div>
 
             <!-- Stats Bar -->
-            <div class="bg-customBg border-2 border-customAccent rounded-2xl p-4 mb-6 shadow-[4px_4px_0px_0px_#243B8F] flex items-center justify-around text-center flex-wrap gap-2">
-                <div>
-                    <span class="block text-xs font-bold uppercase tracking-wider opacity-75">Available</span>
-                    <span id="stat-available" class="text-xl md:text-2xl font-bold">5</span>
+            <div class="grid grid-cols-3 gap-2.5 md:gap-4 mb-6">
+                <div class="bg-amber-50/90 border-2 border-customAccent rounded-2xl p-3 text-center shadow-[3px_3px_0px_0px_#243B8F]">
+                    <span class="block text-[10px] md:text-xs font-bold uppercase tracking-wider text-amber-950/70">✨ Unscratched</span>
+                    <span id="stat-available" class="text-xl md:text-3xl font-extrabold text-customAccent">5</span>
                 </div>
-                <div class="w-px h-8 bg-customAccent opacity-30"></div>
-                <div>
-                    <span class="block text-xs font-bold uppercase tracking-wider opacity-75">Scratched</span>
-                    <span id="stat-scratched" class="text-xl md:text-2xl font-bold text-amber-700">0</span>
+                <div class="bg-blue-50/90 border-2 border-customAccent rounded-2xl p-3 text-center shadow-[3px_3px_0px_0px_#243B8F]">
+                    <span class="block text-[10px] md:text-xs font-bold uppercase tracking-wider text-blue-950/70">🎁 Ready to Use</span>
+                    <span id="stat-scratched" class="text-xl md:text-3xl font-extrabold text-blue-900">0</span>
                 </div>
-                <div class="w-px h-8 bg-customAccent opacity-30"></div>
-                <div>
-                    <span class="block text-xs font-bold uppercase tracking-wider opacity-75">Redeemed</span>
-                    <span id="stat-redeemed" class="text-xl md:text-2xl font-bold text-emerald-700">0</span>
+                <div class="bg-emerald-50/90 border-2 border-customAccent rounded-2xl p-3 text-center shadow-[3px_3px_0px_0px_#243B8F]">
+                    <span class="block text-[10px] md:text-xs font-bold uppercase tracking-wider text-emerald-950/70">❤️ Redeemed</span>
+                    <span id="stat-redeemed" class="text-xl md:text-3xl font-extrabold text-emerald-800">0</span>
                 </div>
             </div>
 
             <!-- Action Bar: Filters & Add Button -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
                 <!-- Filter Pills -->
-                <div class="flex flex-wrap items-center gap-2" id="coupon-filters">
+                <div class="flex flex-wrap items-center gap-1.5 md:gap-2" id="coupon-filters">
                     <button onclick="filterCoupons('all')" data-filter="all" class="coupon-filter-btn active bg-customAccent text-customBg border-2 border-customAccent px-3 py-1.5 rounded-full font-bold text-xs md:text-sm shadow-[2px_2px_0px_0px_#243B8F] transition-all">
                         All Passes 🎫
                     </button>
                     <button onclick="filterCoupons('unscratched')" data-filter="unscratched" class="coupon-filter-btn bg-white text-customAccent border-2 border-customAccent px-3 py-1.5 rounded-full font-bold text-xs md:text-sm hover:bg-customBg transition-all">
-                        Ready to Scratch ✨
+                        ✨ Unscratched
                     </button>
                     <button onclick="filterCoupons('active')" data-filter="active" class="coupon-filter-btn bg-white text-customAccent border-2 border-customAccent px-3 py-1.5 rounded-full font-bold text-xs md:text-sm hover:bg-customBg transition-all">
-                        Ready to Redeem 🎁
+                        🎁 Available
                     </button>
                     <button onclick="filterCoupons('redeemed')" data-filter="redeemed" class="coupon-filter-btn bg-white text-customAccent border-2 border-customAccent px-3 py-1.5 rounded-full font-bold text-xs md:text-sm hover:bg-customBg transition-all">
-                        Redeemed ✓
+                        ✓ Redeemed
                     </button>
                 </div>
 
                 <!-- Add Coupon Button -->
-                <button onclick="toggleAddCouponForm()" class="self-start sm:self-auto bg-customAccent text-customBg px-4 py-2 rounded-full font-bold text-xs md:text-sm flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all shadow-[3px_3px_0px_0px_#243B8F]">
+                <button onclick="toggleAddCouponForm()" class="whitespace-nowrap bg-customAccent text-customBg px-4 py-2 rounded-full font-bold text-xs md:text-sm flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all shadow-[3px_3px_0px_0px_#243B8F]">
                     <span>+</span> Add a Coupon 💫
                 </button>
             </div>

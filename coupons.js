@@ -240,22 +240,41 @@ function renderCoupons() {
         return;
     }
 
-    grid.innerHTML = filtered.map(coupon => {
+    grid.innerHTML = filtered.map((coupon, index) => {
         const isScratched = !!coupon.is_scratched;
         const isRedeemed = !!coupon.is_redeemed;
         const formattedDate = coupon.redeemed_at ? new Date(coupon.redeemed_at).toLocaleDateString() : '';
 
         return `
-            <div id="card-container-${coupon.id}" class="relative bg-white border-3 border-customAccent rounded-2xl p-5 md:p-6 shadow-[5px_5px_0px_0px_#243B8F] overflow-hidden flex flex-col justify-between min-h-[260px] transition-all">
+            <div id="card-container-${coupon.id}" class="ticket-card relative rounded-3xl border-3 border-customAccent p-5 md:p-6 shadow-[5px_5px_0px_0px_#243B8F] overflow-hidden flex flex-col justify-between transition-all duration-300 hover:shadow-[7px_7px_0px_0px_#243B8F] min-h-[300px]">
                 
-                <!-- Underlying Secret Layer -->
-                <div class="space-y-3 z-10 flex-grow">
+                <!-- Ticket notches (cinema ticket cutouts) -->
+                <div class="ticket-notch-left"></div>
+                <div class="ticket-notch-right"></div>
+
+                <!-- Ticket Top Header -->
+                <div class="space-y-1.5">
                     <div class="flex items-center justify-between">
-                        <span class="text-3xl">${coupon.icon || '🎫'}</span>
-                        <div class="flex items-center gap-1.5">
-                            <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border border-customAccent bg-customBg">
-                                Love Pass ✨
+                        <div class="flex items-center gap-2">
+                            <span class="text-2xl md:text-3xl">${coupon.icon || '🎫'}</span>
+                            <span class="text-[11px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-md bg-amber-100/90 text-amber-950 border border-amber-300">
+                                PASS #${String(index + 1).padStart(2, '0')}
                             </span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            ${isRedeemed ? `
+                                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-300">
+                                    Redeemed ✓
+                                </span>
+                            ` : isScratched ? `
+                                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                                    Unlocked 🎁
+                                </span>
+                            ` : `
+                                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-blue-100 text-blue-900 border border-blue-300 animate-pulse">
+                                    Scratch Me ✨
+                                </span>
+                            `}
                             <button onclick="deleteCoupon('${coupon.id}', event)" title="Remove coupon" class="opacity-25 hover:opacity-100 hover:text-red-600 transition-opacity p-1 rounded">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
@@ -263,23 +282,60 @@ function renderCoupons() {
                             </button>
                         </div>
                     </div>
-                    <h3 class="font-bold text-lg md:text-xl text-customAccent leading-tight">
+
+                    <!-- Ticket Title -->
+                    <h3 class="font-extrabold text-base md:text-lg text-customAccent leading-snug pt-1">
                         ${escapeHtml(coupon.title)}
                     </h3>
-                    <p class="text-xs md:text-sm font-semibold opacity-85 leading-relaxed">
-                        ${escapeHtml(coupon.description)}
-                    </p>
                 </div>
 
-                <!-- Bottom Action Area -->
-                <div class="pt-4 z-10 flex items-center justify-between border-t-2 border-customAccent/20 mt-3">
-                    <span class="text-xs font-bold opacity-60">Never expires ❤️</span>
+                <!-- Central Scratch-Off Window -->
+                <div class="relative my-3.5 w-full min-h-[110px] rounded-2xl border-2 border-customAccent bg-amber-50/70 overflow-hidden flex flex-col items-center justify-center p-3.5 text-center shadow-inner">
                     
+                    <!-- Secret Content (Visible once scratched) -->
+                    <div class="space-y-1.5 z-10 px-2 py-1">
+                        <p class="text-xs md:text-sm font-semibold text-customAccent leading-relaxed">
+                            ${escapeHtml(coupon.description)}
+                        </p>
+                        <div class="inline-block text-[10px] font-mono font-bold tracking-widest text-amber-900/80 bg-amber-200/70 px-2.5 py-0.5 rounded border border-amber-300">
+                            VOUCHER: HIMI-PASS-${String(index + 1).padStart(2, '0')}
+                        </div>
+                    </div>
+
+                    <!-- Shimmering Gold Foil Canvas Overlay (Only if not yet scratched) -->
+                    ${!isScratched ? `
+                        <canvas id="scratch-canvas-${coupon.id}" class="absolute inset-0 w-full h-full cursor-crosshair z-30 touch-none"></canvas>
+                    ` : ''}
+
+                    <!-- Redeemed Vintage Ink Stamp Overlay -->
+                    ${isRedeemed ? `
+                        <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-40 bg-white/50 backdrop-blur-[0.5px]">
+                            <div class="stamp-redeemed text-xs md:text-sm shadow-md">
+                                REDEEMED ✓
+                                ${formattedDate ? `<div class="text-[9px] font-sans font-bold tracking-normal opacity-90 text-center">${formattedDate}</div>` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+
+                <!-- Ticket Bottom Perforation & Action -->
+                <div class="pt-2.5 border-t-2 border-dashed border-customAccent/30 flex items-center justify-between flex-wrap gap-2">
+                    <div class="flex items-center gap-1.5 opacity-60">
+                        <span class="font-mono text-[10px] tracking-widest select-none">|||▌|▌||▌||</span>
+                        <span class="text-[10px] font-bold">VALID FOREVER</span>
+                    </div>
+
                     <div class="flex items-center gap-2">
                         ${!isRedeemed && isScratched ? `
-                            <button onclick="redeemCoupon('${coupon.id}')" class="bg-customAccent text-customBg px-3.5 py-1.5 rounded-full font-bold text-xs md:text-sm hover:scale-105 active:scale-95 transition-all shadow-[2px_2px_0px_0px_#FFF0C9]">
-                                Redeem 🎁
+                            <button onclick="redeemCoupon('${coupon.id}')" class="bg-customAccent text-customBg px-4 py-1.5 rounded-full font-bold text-xs hover:scale-105 active:scale-95 transition-all shadow-[2px_2px_0px_0px_#FFF0C9]">
+                                Redeem with Sanyam 🎁
                             </button>
+                        ` : ''}
+
+                        ${!isScratched ? `
+                            <span class="text-[11px] font-bold text-amber-900/75 italic flex items-center gap-1">
+                                <span>🪙</span> Scratch above
+                            </span>
                         ` : ''}
 
                         ${isRedeemed ? `
@@ -289,21 +345,6 @@ function renderCoupons() {
                         ` : ''}
                     </div>
                 </div>
-
-                <!-- Redeemed Ink Stamp Overlay -->
-                ${isRedeemed ? `
-                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-                        <div class="border-4 border-red-600 text-red-600 font-extrabold text-2xl md:text-3xl px-6 py-2 rounded-xl transform -rotate-12 uppercase tracking-widest bg-white/70 backdrop-blur-[1px] shadow-lg animate-pulse">
-                            REDEEMED ✓
-                            ${formattedDate ? `<div class="text-[10px] text-center font-bold tracking-normal opacity-90">${formattedDate}</div>` : ''}
-                        </div>
-                    </div>
-                ` : ''}
-
-                <!-- Scratch-Off Foil Canvas (Only if not yet scratched) -->
-                ${!isScratched ? `
-                    <canvas id="scratch-canvas-${coupon.id}" class="absolute inset-0 w-full h-full cursor-crosshair z-30 touch-none"></canvas>
-                ` : ''}
 
             </div>
         `;
@@ -327,14 +368,13 @@ function setupScratchCanvas(couponId) {
 
     // Scale canvas resolution to element dimensions
     canvas.width = rect.width || 320;
-    canvas.height = rect.height || 260;
+    canvas.height = rect.height || 110;
 
     // Paint Foil Layer
     paintFoil(ctx, canvas.width, canvas.height);
 
     let isScratching = false;
     let totalPixels = canvas.width * canvas.height;
-    let scratchedPixels = 0;
     let hasCleared = false;
 
     function getCoords(e) {
@@ -350,7 +390,7 @@ function setupScratchCanvas(couponId) {
 
         ctx.globalCompositeOperation = 'destination-out';
         ctx.beginPath();
-        ctx.arc(x, y, 22, 0, Math.PI * 2);
+        ctx.arc(x, y, 18, 0, Math.PI * 2);
         ctx.fill();
 
         // Sample scratch completion every few moves
@@ -374,7 +414,7 @@ function setupScratchCanvas(couponId) {
 
             const ratio = transparentCount / (totalPixels / 16);
 
-            if (ratio > 0.42) {
+            if (ratio > 0.40) {
                 hasCleared = true;
                 autoRevealCoupon(couponId, canvas);
             }
@@ -407,40 +447,58 @@ function setupScratchCanvas(couponId) {
     });
 }
 
-// Paint glamorous navy & gold foil texture on canvas
+// Paint glamorous champagne gold foil on canvas
 function paintFoil(ctx, width, height) {
-    // Rich navy gradient
+    // 1. Radiant Gold Metallic Gradient
     const grad = ctx.createLinearGradient(0, 0, width, height);
-    grad.addColorStop(0, '#243B8F');
-    grad.addColorStop(0.5, '#1E3278');
-    grad.addColorStop(1, '#152355');
+    grad.addColorStop(0, '#F5D77F');
+    grad.addColorStop(0.25, '#FFE8A3');
+    grad.addColorStop(0.5, '#D4AF37');
+    grad.addColorStop(0.75, '#F3D079');
+    grad.addColorStop(1, '#C59B27');
 
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, width, height);
 
-    // Decorative dotted border
-    ctx.strokeStyle = '#FFF0C9';
-    ctx.lineWidth = 3;
-    ctx.setLineDash([6, 6]);
-    ctx.strokeRect(10, 10, width - 20, height - 20);
+    // 2. Add subtle metallic sparkle dots/flakes
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    for (let i = 0; i < 35; i++) {
+        const sx = (i * 29 + 13) % width;
+        const sy = (i * 37 + 7) % height;
+        const sr = (i % 3) + 1;
+        ctx.beginPath();
+        ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+        ctx.fill();
+    }
 
-    // Sparkly star accents
-    ctx.fillStyle = '#FFF0C9';
-    drawStar(ctx, 35, 35, 4, 3);
-    drawStar(ctx, width - 35, 35, 4, 3);
-    drawStar(ctx, 35, height - 35, 4, 3);
-    drawStar(ctx, width - 35, height - 35, 4, 3);
+    // 3. Delicate gold foil border
+    ctx.strokeStyle = '#835C0F';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(6, 6, width - 12, height - 12);
+    ctx.setLineDash([]);
 
-    // Centered foil text
-    ctx.font = 'bold 16px Quicksand, sans-serif';
+    // 4. Little decorative corner stars
+    ctx.fillStyle = '#6B4A08';
+    drawStar(ctx, 20, 20, 4, 3);
+    drawStar(ctx, width - 20, 20, 4, 3);
+    drawStar(ctx, 20, height - 20, 4, 3);
+    drawStar(ctx, width - 20, height - 20, 4, 3);
+
+    // 5. Embossed foil text
+    ctx.font = 'bold 13px Quicksand, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#FFF0C9';
-    ctx.fillText('✨ SCRATCH TO REVEAL ✨', width / 2, height / 2 - 10);
 
-    ctx.font = 'semibold 12px Quicksand, sans-serif';
-    ctx.fillStyle = '#FFF0C9';
-    ctx.fillText('Rub with your finger or mouse 🪙', width / 2, height / 2 + 18);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.fillText('✨ SCRATCH TO REVEAL PROMISE ✨', width / 2, height / 2 - 8);
+
+    ctx.fillStyle = '#5A3E06';
+    ctx.fillText('✨ SCRATCH TO REVEAL PROMISE ✨', width / 2, height / 2 - 9);
+
+    ctx.font = 'bold 11px Quicksand, sans-serif';
+    ctx.fillStyle = '#7A5408';
+    ctx.fillText('🪙 Rub with finger or mouse', width / 2, height / 2 + 13);
 }
 
 // Helper: draw cute stars on the foil
