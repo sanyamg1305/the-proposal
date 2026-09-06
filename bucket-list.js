@@ -59,12 +59,14 @@ const STARTER_ITEMS = [
     { id: '9', title: 'Take goofy photobooth pictures together', category: 'Cozy', is_completed: false, is_recurring: false, completion_count: 0 },
     { id: '10', title: 'Our first flight & trip together to a brand new city', category: 'Adventure', is_completed: false, is_recurring: false, completion_count: 0 },
     { id: '11', title: 'Fill a memory scrapbook with our tickets, notes, and photos', category: 'Adventure', is_completed: false, is_recurring: false, completion_count: 0 },
+    { id: '12', title: 'Take a spontaneous day off together with zero plans', category: 'General', is_completed: false, is_recurring: false, completion_count: 0 },
+    { id: '13', title: 'Write each other love letters to open on our anniversary', category: 'General', is_completed: false, is_recurring: false, completion_count: 0 },
 
     // Recurring couple rituals
-    { id: '12', title: 'Weekly beach date to recharge our batteries 🏖️🔋', category: 'Beach', is_completed: false, is_recurring: true, recurrence_interval: 'Weekly', completion_count: 0 },
-    { id: '13', title: 'Daily goofy face & smile check across the office 🏢😂', category: 'Office', is_completed: false, is_recurring: true, recurrence_interval: 'Daily', completion_count: 0 },
-    { id: '14', title: 'Remind Himi to take medicines & wear glasses without complaining 💊👓', category: 'Office', is_completed: false, is_recurring: true, recurrence_interval: 'Daily', completion_count: 0 },
-    { id: '15', title: 'Monthly cozy bookstore & new coffee shop date 📚☕', category: 'Cozy', is_completed: false, is_recurring: true, recurrence_interval: 'Monthly', completion_count: 0 }
+    { id: '14', title: 'Weekly beach date to recharge our batteries 🏖️🔋', category: 'Beach', is_completed: false, is_recurring: true, recurrence_interval: 'Weekly', completion_count: 0 },
+    { id: '15', title: 'Daily goofy face & smile check across the office 🏢😂', category: 'Office', is_completed: false, is_recurring: true, recurrence_interval: 'Daily', completion_count: 0 },
+    { id: '16', title: 'Remind Himi to take medicines & wear glasses without complaining 💊👓', category: 'Office', is_completed: false, is_recurring: true, recurrence_interval: 'Daily', completion_count: 0 },
+    { id: '17', title: 'Monthly cozy bookstore & new coffee shop date 📚☕', category: 'Cozy', is_completed: false, is_recurring: true, recurrence_interval: 'Monthly', completion_count: 0 }
 ];
 
 // Initialize on page load
@@ -402,8 +404,10 @@ function renderItems() {
         filtered = currentItems;
     } else if (activeCategory === 'Recurring') {
         filtered = currentItems.filter(i => !!i.is_recurring);
+    } else if (activeCategory.toLowerCase() === 'general') {
+        filtered = currentItems.filter(i => !i.category || i.category.toLowerCase() === 'general' || i.category.toLowerCase().includes('general'));
     } else {
-        filtered = currentItems.filter(i => (i.category || '').toLowerCase() === activeCategory.toLowerCase());
+        filtered = currentItems.filter(i => (i.category || '').toLowerCase().includes(activeCategory.toLowerCase()));
     }
 
     updateProgressBar();
@@ -510,7 +514,8 @@ function getCategoryBadge(cat) {
     if (c.includes('office')) return '🏢 Office';
     if (c.includes('cozy')) return '📚 Cozy';
     if (c.includes('adventure')) return '✈️ Adventure';
-    return `✨ ${cat || 'General'}`;
+    if (c.includes('general') || !cat) return '✨ General';
+    return `✨ ${cat}`;
 }
 
 // Progress Bar & Cheer Messages
