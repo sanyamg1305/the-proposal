@@ -87,20 +87,68 @@
                 </div>
             </div>
 
-            <!-- Filter Pills -->
-            <div class="flex flex-wrap items-center gap-2 mb-6" id="coupon-filters">
-                <button onclick="filterCoupons('all')" data-filter="all" class="coupon-filter-btn active bg-customAccent text-customBg border-2 border-customAccent px-3 py-1.5 rounded-full font-bold text-xs md:text-sm shadow-[2px_2px_0px_0px_#243B8F] transition-all">
-                    All Passes 🎫
+            <!-- Action Bar: Filters & Add Button -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                <!-- Filter Pills -->
+                <div class="flex flex-wrap items-center gap-2" id="coupon-filters">
+                    <button onclick="filterCoupons('all')" data-filter="all" class="coupon-filter-btn active bg-customAccent text-customBg border-2 border-customAccent px-3 py-1.5 rounded-full font-bold text-xs md:text-sm shadow-[2px_2px_0px_0px_#243B8F] transition-all">
+                        All Passes 🎫
+                    </button>
+                    <button onclick="filterCoupons('unscratched')" data-filter="unscratched" class="coupon-filter-btn bg-white text-customAccent border-2 border-customAccent px-3 py-1.5 rounded-full font-bold text-xs md:text-sm hover:bg-customBg transition-all">
+                        Ready to Scratch ✨
+                    </button>
+                    <button onclick="filterCoupons('active')" data-filter="active" class="coupon-filter-btn bg-white text-customAccent border-2 border-customAccent px-3 py-1.5 rounded-full font-bold text-xs md:text-sm hover:bg-customBg transition-all">
+                        Ready to Redeem 🎁
+                    </button>
+                    <button onclick="filterCoupons('redeemed')" data-filter="redeemed" class="coupon-filter-btn bg-white text-customAccent border-2 border-customAccent px-3 py-1.5 rounded-full font-bold text-xs md:text-sm hover:bg-customBg transition-all">
+                        Redeemed ✓
+                    </button>
+                </div>
+
+                <!-- Add Coupon Button -->
+                <button onclick="toggleAddCouponForm()" class="self-start sm:self-auto bg-customAccent text-customBg px-4 py-2 rounded-full font-bold text-xs md:text-sm flex items-center gap-1.5 hover:scale-105 active:scale-95 transition-all shadow-[3px_3px_0px_0px_#243B8F]">
+                    <span>+</span> Add a Coupon 💫
                 </button>
-                <button onclick="filterCoupons('unscratched')" data-filter="unscratched" class="coupon-filter-btn bg-white text-customAccent border-2 border-customAccent px-3 py-1.5 rounded-full font-bold text-xs md:text-sm hover:bg-customBg transition-all">
-                    Ready to Scratch ✨
-                </button>
-                <button onclick="filterCoupons('active')" data-filter="active" class="coupon-filter-btn bg-white text-customAccent border-2 border-customAccent px-3 py-1.5 rounded-full font-bold text-xs md:text-sm hover:bg-customBg transition-all">
-                    Ready to Redeem 🎁
-                </button>
-                <button onclick="filterCoupons('redeemed')" data-filter="redeemed" class="coupon-filter-btn bg-white text-customAccent border-2 border-customAccent px-3 py-1.5 rounded-full font-bold text-xs md:text-sm hover:bg-customBg transition-all">
-                    Redeemed ✓
-                </button>
+            </div>
+
+            <!-- Add Coupon Form (Collapsible) -->
+            <div id="add-coupon-form" class="hidden bg-customBg border-2 border-customAccent rounded-2xl p-4 md:p-5 mb-6 shadow-[4px_4px_0px_0px_#243B8F] transition-all">
+                <h3 class="font-bold text-base mb-3 flex items-center gap-2">
+                    <span>💫</span> Create a new Love Coupon for Himi
+                </h3>
+                <form onsubmit="handleAddCoupon(event)" class="space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <div class="sm:col-span-3">
+                            <input id="coupon-title" type="text" placeholder="e.g., Free Coffee Delivery at Office ☕" required class="w-full px-3.5 py-2.5 rounded-xl border-2 border-customAccent bg-white text-customAccent font-medium text-sm focus:outline-none focus:ring-2 focus:ring-customAccent">
+                        </div>
+                        <div>
+                            <select id="coupon-icon" class="w-full px-3.5 py-2.5 rounded-xl border-2 border-customAccent bg-white text-customAccent font-bold text-sm focus:outline-none">
+                                <option value="☕">☕ Coffee</option>
+                                <option value="🍦">🍦 Ice Cream</option>
+                                <option value="🎬">🎬 Movie</option>
+                                <option value="🧺">🧺 Picnic</option>
+                                <option value="📚">📚 Book</option>
+                                <option value="🍳">🍳 Food</option>
+                                <option value="🚗">🚗 Drive</option>
+                                <option value="🤐">🤐 Peace</option>
+                                <option value="💆‍♀️">💆‍♀️ Massage</option>
+                                <option value="🎫">🎫 Pass</option>
+                                <option value="💖">💖 Special</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <textarea id="coupon-desc" rows="2" placeholder="e.g., Sanyam brings you your favorite iced beverage with zero delays and a big smile! ❤️" required class="w-full px-3.5 py-2 rounded-xl border-2 border-customAccent bg-white text-customAccent font-medium text-sm focus:outline-none focus:ring-2 focus:ring-customAccent"></textarea>
+                    </div>
+                    <div class="flex items-center justify-end gap-2">
+                        <button type="button" onclick="toggleAddCouponForm()" class="px-4 py-2 rounded-full border-2 border-customAccent font-bold text-xs md:text-sm hover:bg-white transition-all">
+                            Cancel
+                        </button>
+                        <button type="submit" id="coupon-submit-btn" class="bg-customAccent text-customBg px-5 py-2 rounded-full font-bold text-xs md:text-sm hover:opacity-90 transition-all shadow-[2px_2px_0px_0px_#243B8F]">
+                            Create Coupon ❤️
+                        </button>
+                    </div>
+                </form>
             </div>
 
             <!-- Coupons Grid -->

@@ -47,6 +47,9 @@ select * from (values
     ('Free pass to skip 1 health lecture from Sanyam', 'Total peace & quiet pass: zero comments or lectures about medicines, glasses, or coffee for the whole day! 😂', '🤐', false, false),
     ('Sanyam cooks whatever you want from scratch', 'Chef Sanyam is at your command! Pick whatever meal or dessert your heart desires, cooked completely from scratch 🍳', '🍳', false, false),
     ('Bookstore date: Sanyam buys you any book you pick', 'A cozy bookstore afternoon where Sanyam buys any book that catches your eye, no questions asked 📚', '📚', false, false),
-    ('Late night drive with your playlist on blast', 'Windows down, beach breeze, city lights, and your songs playing as loud as you want 🚗💨', '🚗', false, false)
+    ('Late night drive with your playlist on blast', 'Windows down, beach breeze, city lights, and your songs playing as loud as you want 🚗💨', '🚗', false, false),
+    ('Undercover office coffee delivery by Sanyam', 'Sanyam sneaks to your desk with your favorite iced beverage during a busy workday ☕❤️', '☕', false, false),
+    ('Movie night dictator pass: you pick the movie & snacks', 'Full veto power over what we watch and all snacks. Zero complaints allowed from Sanyam! 🎬🍿', '🎬', false, false),
+    ('Spontaneous beach picnic with all your favorite treats', 'Blanket on the sand, cool sea breeze, and a picnic basket filled with everything you love 🧺🏖️', '🧺', false, false)
 ) as initial_coupons(title, description, icon, is_scratched, is_redeemed)
 where not exists (select 1 from public.date_coupons limit 1);

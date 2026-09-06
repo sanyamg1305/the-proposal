@@ -91,6 +91,33 @@ const STARTER_COUPONS = [
         is_scratched: false,
         is_redeemed: false,
         redeemed_at: null
+    },
+    {
+        id: '6',
+        title: 'Undercover office coffee delivery by Sanyam',
+        description: 'Sanyam sneaks to your desk with your favorite iced beverage during a busy workday ☕❤️',
+        icon: '☕',
+        is_scratched: false,
+        is_redeemed: false,
+        redeemed_at: null
+    },
+    {
+        id: '7',
+        title: 'Movie night dictator pass: you pick the movie & snacks',
+        description: 'Full veto power over what we watch and all snacks. Zero complaints allowed from Sanyam! 🎬🍿',
+        icon: '🎬',
+        is_scratched: false,
+        is_redeemed: false,
+        redeemed_at: null
+    },
+    {
+        id: '8',
+        title: 'Spontaneous beach picnic with all your favorite treats',
+        description: 'Blanket on the sand, cool sea breeze, and a picnic basket filled with everything you love 🧺🏖️',
+        icon: '🧺',
+        is_scratched: false,
+        is_redeemed: false,
+        redeemed_at: null
     }
 ];
 
@@ -225,9 +252,16 @@ function renderCoupons() {
                 <div class="space-y-3 z-10 flex-grow">
                     <div class="flex items-center justify-between">
                         <span class="text-3xl">${coupon.icon || '🎫'}</span>
-                        <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border border-customAccent bg-customBg">
-                            Love Pass ✨
-                        </span>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border border-customAccent bg-customBg">
+                                Love Pass ✨
+                            </span>
+                            <button onclick="deleteCoupon('${coupon.id}', event)" title="Remove coupon" class="opacity-25 hover:opacity-100 hover:text-red-600 transition-opacity p-1 rounded">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                     <h3 class="font-bold text-lg md:text-xl text-customAccent leading-tight">
                         ${escapeHtml(coupon.title)}
@@ -595,3 +629,108 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 }
+
+// Toggle Add Coupon Form
+function toggleAddCouponForm() {
+    const form = document.getElementById('add-coupon-form');
+    if (form) {
+        form.classList.toggle('hidden');
+        if (!form.classList.contains('hidden')) {
+            document.getElementById('coupon-title').focus();
+        }
+    }
+}
+
+// Add New Coupon Handler
+async function handleAddCoupon(event) {
+    event.preventDefault();
+    const titleInput = document.getElementById('coupon-title');
+    const descInput = document.getElementById('coupon-desc');
+    const iconSelect = document.getElementById('coupon-icon');
+    const submitBtn = document.getElementById('coupon-submit-btn');
+
+    const title = titleInput.value.trim();
+    const description = descInput.value.trim();
+    const icon = iconSelect.value;
+
+    if (!title || !description) return;
+
+    submitBtn.disabled = true;
+    submitBtn.innerText = 'Creating...';
+
+    const client = await getSupabaseClient();
+
+    if (client) {
+        try {
+            const { data, error } = await client
+                .from('date_coupons')
+                .insert([{
+                    title,
+                    description,
+                    icon,
+                    is_scratched: false,
+                    is_redeemed: false
+                }])
+                .select();
+
+            if (error) {
+                console.error('Insert coupon error:', error);
+                alert('Could not save to Supabase. Check credentials or table schema.');
+            } else if (data) {
+                coupons.push(data[0]);
+                saveLocalCoupons(coupons);
+            }
+        } catch (err) {
+            console.error('Insert coupon exception:', err);
+        }
+    } else {
+        // Local preview fallback
+        const newCoupon = {
+            id: 'coupon-' + Date.now(),
+            title,
+            description,
+            icon,
+            is_scratched: false,
+            is_redeemed: false,
+            redeemed_at: null
+        };
+        coupons.push(newCoupon);
+        saveLocalCoupons(coupons);
+    }
+
+    titleInput.value = '';
+    descInput.value = '';
+    submitBtn.disabled = false;
+    submitBtn.innerText = 'Create Coupon ❤️';
+    toggleAddCouponForm();
+    renderCoupons();
+
+    if (typeof confetti === 'function') {
+        confetti({
+            particleCount: 60,
+            spread: 70,
+            origin: { y: 0.6 },
+            colors: ['#243B8F', '#FFF0C9', '#E74C3C', '#F39C12']
+        });
+    }
+}
+
+// Delete Coupon Handler
+async function deleteCoupon(couponId, event) {
+    if (event) event.stopPropagation();
+    if (!confirm('Remove this love coupon?')) return;
+
+    coupons = coupons.filter(c => c.id != couponId);
+    saveLocalCoupons(coupons);
+    renderCoupons();
+
+    try {
+        const client = await getSupabaseClient();
+        if (client) {
+            await client.from('date_coupons').delete().eq('id', couponId);
+        }
+    } catch (e) {
+        console.warn('Delete coupon error:', e);
+    }
+}
+
