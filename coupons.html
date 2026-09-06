@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Himi's Love Coupons 🎫✨</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        customBg: '#FFF0C9',
+                        customAccent: '#243B8F',
+                    },
+                    fontFamily: {
+                        quicksand: ['Quicksand', 'sans-serif'],
+                        sacramento: ['Sacramento', 'cursive'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;600;700&family=Sacramento&display=swap" rel="stylesheet">
+    <!-- Custom Style Sheet -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Confetti Library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Supabase JS Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-customBg text-customAccent font-quicksand min-h-screen flex flex-col justify-between overflow-x-hidden relative select-none">
+
+    <!-- Floating books container -->
+    <div id="books-container" class="absolute inset-0 pointer-events-none z-0"></div>
+
+    <!-- Main Container -->
+    <main class="flex-grow flex flex-col items-center justify-start p-4 md:p-8 z-10 max-w-4xl mx-auto w-full">
+        
+        <!-- Navigation Header -->
+        <header class="w-full flex items-center justify-between mb-6 flex-wrap gap-3">
+            <div class="flex items-center gap-2">
+                <a href="index.html" class="flex items-center gap-1.5 bg-transparent text-customAccent border-2 border-customAccent px-3.5 py-1.5 rounded-full font-bold text-xs md:text-sm hover:bg-customAccent hover:text-customBg transition-all shadow-[2px_2px_0px_0px_#243B8F] active:translate-y-0.5">
+                    ← Letter 💌
+                </a>
+                <a href="bucket-list.html" class="flex items-center gap-1.5 bg-transparent text-customAccent border-2 border-customAccent px-3.5 py-1.5 rounded-full font-bold text-xs md:text-sm hover:bg-customAccent hover:text-customBg transition-all shadow-[2px_2px_0px_0px_#243B8F] active:translate-y-0.5">
+                    Bucket List 📋
+                </a>
+            </div>
+            <span class="text-xs md:text-sm font-bold bg-customAccent text-customBg px-3 py-1 rounded-full flex items-center gap-1.5 shadow-[2px_2px_0px_0px_rgba(36,59,143,0.3)]">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                Cloud Synced
+            </span>
+        </header>
+
+        <!-- Main Card Wrapper -->
+        <div class="w-full bg-[#fff8e7] border-4 border-customAccent rounded-3xl p-6 md:p-10 shadow-[8px_8px_0px_0px_rgba(36,59,143,1)] relative transition-all">
+            
+            <!-- Title Header -->
+            <div class="text-center space-y-2 mb-6">
+                <h1 class="font-sacramento text-5xl md:text-6xl font-bold tracking-wide">Himi's Special Passes</h1>
+                <h2 class="text-2xl md:text-3xl font-bold tracking-tight">Digital Scratch-Off Coupons 🎫✨</h2>
+                <p class="text-sm md:text-base font-semibold opacity-90 max-w-md mx-auto">
+                    Scratch off the foil with your finger or mouse to reveal your reward. Redeem them with Sanyam anytime!
+                </p>
+            </div>
+
+            <!-- Stats Bar -->
+            <div class="bg-customBg border-2 border-customAccent rounded-2xl p-4 mb-6 shadow-[4px_4px_0px_0px_#243B8F] flex items-center justify-around text-center flex-wrap gap-2">
+                <div>
+                    <span class="block text-xs font-bold uppercase tracking-wider opacity-75">Available</span>
+                    <span id="stat-available" class="text-xl md:text-2xl font-bold">5</span>
+                </div>
+                <div class="w-px h-8 bg-customAccent opacity-30"></div>
+                <div>
+                    <span class="block text-xs font-bold uppercase tracking-wider opacity-75">Scratched</span>
+                    <span id="stat-scratched" class="text-xl md:text-2xl font-bold text-amber-700">0</span>
+                </div>
+                <div class="w-px h-8 bg-customAccent opacity-30"></div>
+                <div>
+                    <span class="block text-xs font-bold uppercase tracking-wider opacity-75">Redeemed</span>
+                    <span id="stat-redeemed" class="text-xl md:text-2xl font-bold text-emerald-700">0</span>
+                </div>
+            </div>
+
+            <!-- Filter Pills -->
+            <div class="flex flex-wrap items-center gap-2 mb-6" id="coupon-filters">
+                <button onclick="filterCoupons('all')" data-filter="all" class="coupon-filter-btn active bg-customAccent text-customBg border-2 border-customAccent px-3 py-1.5 rounded-full font-bold text-xs md:text-sm shadow-[2px_2px_0px_0px_#243B8F] transition-all">
+                    All Passes 🎫
+                </button>
+                <button onclick="filterCoupons('unscratched')" data-filter="unscratched" class="coupon-filter-btn bg-white text-customAccent border-2 border-customAccent px-3 py-1.5 rounded-full font-bold text-xs md:text-sm hover:bg-customBg transition-all">
+                    Ready to Scratch ✨
+                </button>
+                <button onclick="filterCoupons('active')" data-filter="active" class="coupon-filter-btn bg-white text-customAccent border-2 border-customAccent px-3 py-1.5 rounded-full font-bold text-xs md:text-sm hover:bg-customBg transition-all">
+                    Ready to Redeem 🎁
+                </button>
+                <button onclick="filterCoupons('redeemed')" data-filter="redeemed" class="coupon-filter-btn bg-white text-customAccent border-2 border-customAccent px-3 py-1.5 rounded-full font-bold text-xs md:text-sm hover:bg-customBg transition-all">
+                    Redeemed ✓
+                </button>
+            </div>
+
+            <!-- Coupons Grid -->
+            <div id="coupons-grid" class="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[300px]">
+                <!-- Loading State -->
+                <div id="coupons-loading" class="col-span-full flex flex-col items-center justify-center py-16 space-y-3">
+                    <div class="w-10 h-10 border-4 border-customAccent border-t-transparent rounded-full animate-spin"></div>
+                    <p class="font-bold text-sm opacity-80">Loading Himi's love coupons...</p>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center py-6 text-sm font-semibold opacity-75 z-10">
+        made with ❤️ for Himi
+    </footer>
+
+    <!-- Scripts -->
+    <script src="supabase-config.js"></script>
+    <script src="coupons.js"></script>
+</body>
+</html>
