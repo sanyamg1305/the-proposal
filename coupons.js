@@ -50,6 +50,7 @@ const STARTER_COUPONS = [
     {
         id: '1',
         title: 'One spontaneous sunset beach run with ice cream',
+        hint: '🏖️ Sunsets, beach breeze & cold sweet treats',
         description: 'Redeemable for one immediate sunset escape to the beach with your favorite ice cream in hand! 🍦🌅',
         icon: '🍦',
         is_scratched: false,
@@ -59,6 +60,7 @@ const STARTER_COUPONS = [
     {
         id: '2',
         title: 'Free pass to skip 1 health lecture from Sanyam',
+        hint: '🤐 Zero nagging about medicines, glasses & coffee!',
         description: 'Total peace & quiet pass: zero comments or lectures about medicines, glasses, or coffee for the whole day! 😂',
         icon: '🤐',
         is_scratched: false,
@@ -68,6 +70,7 @@ const STARTER_COUPONS = [
     {
         id: '3',
         title: 'Sanyam cooks whatever you want from scratch',
+        hint: '🍳 Chef Sanyam kitchen takeover on demand',
         description: 'Chef Sanyam is at your command! Pick whatever meal or dessert your heart desires, cooked completely from scratch 🍳',
         icon: '🍳',
         is_scratched: false,
@@ -77,6 +80,7 @@ const STARTER_COUPONS = [
     {
         id: '4',
         title: 'Bookstore date: Sanyam buys you any book you pick',
+        hint: '📚 Cozy bookstore wander & free book pick',
         description: 'A cozy bookstore afternoon where Sanyam buys any book that catches your eye, no questions asked 📚',
         icon: '📚',
         is_scratched: false,
@@ -86,6 +90,7 @@ const STARTER_COUPONS = [
     {
         id: '5',
         title: 'Late night drive with your playlist on blast',
+        hint: '🚗 City lights, windows down & loud tunes',
         description: 'Windows down, beach breeze, city lights, and your songs playing as loud as you want 🚗💨',
         icon: '🚗',
         is_scratched: false,
@@ -95,6 +100,7 @@ const STARTER_COUPONS = [
     {
         id: '6',
         title: 'Undercover office coffee delivery by Sanyam',
+        hint: '☕ Secret desk coffee run during a busy day',
         description: 'Sanyam sneaks to your desk with your favorite iced beverage during a busy workday ☕❤️',
         icon: '☕',
         is_scratched: false,
@@ -104,6 +110,7 @@ const STARTER_COUPONS = [
     {
         id: '7',
         title: 'Movie night dictator pass: you pick the movie & snacks',
+        hint: '🎬 Total screen veto power & snack monopoly',
         description: 'Full veto power over what we watch and all snacks. Zero complaints allowed from Sanyam! 🎬🍿',
         icon: '🎬',
         is_scratched: false,
@@ -113,6 +120,7 @@ const STARTER_COUPONS = [
     {
         id: '8',
         title: 'Spontaneous beach picnic with all your favorite treats',
+        hint: '🧺 Blanket on the sand & basket full of bites',
         description: 'Blanket on the sand, cool sea breeze, and a picnic basket filled with everything you love 🧺🏖️',
         icon: '🧺',
         is_scratched: false,
@@ -120,6 +128,22 @@ const STARTER_COUPONS = [
         redeemed_at: null
     }
 ];
+
+// Helper to determine or auto-generate hint
+function getCouponHint(coupon) {
+    if (coupon.hint) return coupon.hint;
+    const t = (coupon.title || '').toLowerCase();
+    const d = (coupon.description || '').toLowerCase();
+    if (t.includes('beach') || d.includes('beach') || t.includes('sunset')) return '🏖️ Sunsets, beach breeze & cold sweet treats';
+    if (t.includes('coffee') || d.includes('coffee')) return '☕ Secret desk coffee run during a busy day';
+    if (t.includes('book') || d.includes('book')) return '📚 Cozy bookstore wander & free book pick';
+    if (t.includes('cook') || t.includes('food') || d.includes('food')) return '🍳 Chef Sanyam kitchen takeover on demand';
+    if (t.includes('drive') || d.includes('drive')) return '🚗 City lights, windows down & loud tunes';
+    if (t.includes('lecture') || t.includes('medicine')) return '🤐 Zero nagging about medicines, glasses & coffee!';
+    if (t.includes('movie') || d.includes('movie')) return '🎬 Total screen veto power & snack monopoly';
+    if (t.includes('picnic') || d.includes('picnic')) return '🧺 Blanket on the sand & basket full of bites';
+    return `${coupon.icon || '✨'} A special romantic promise waiting for you`;
+}
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -244,6 +268,7 @@ function renderCoupons() {
         const isScratched = !!coupon.is_scratched;
         const isRedeemed = !!coupon.is_redeemed;
         const formattedDate = coupon.redeemed_at ? new Date(coupon.redeemed_at).toLocaleDateString() : '';
+        const hint = getCouponHint(coupon);
 
         return `
             <div id="card-container-${coupon.id}" class="ticket-card relative rounded-3xl border-3 border-customAccent p-5 md:p-6 shadow-[5px_5px_0px_0px_#243B8F] overflow-hidden flex flex-col justify-between transition-all duration-300 hover:shadow-[7px_7px_0px_0px_#243B8F] min-h-[300px]">
@@ -287,6 +312,12 @@ function renderCoupons() {
                     <h3 class="font-extrabold text-base md:text-lg text-customAccent leading-snug pt-1">
                         ${escapeHtml(coupon.title)}
                     </h3>
+
+                    <!-- Hint Badge on Card -->
+                    <div class="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-950 bg-amber-100/90 border border-amber-300/80 px-2.5 py-1 rounded-lg mt-1 w-full">
+                        <span>💡 Hint:</span>
+                        <span class="font-semibold text-customAccent truncate">${escapeHtml(hint)}</span>
+                    </div>
                 </div>
 
                 <!-- Central Scratch-Off Window -->
@@ -353,13 +384,14 @@ function renderCoupons() {
     // Attach scratch physics to all unscratched cards
     filtered.forEach(coupon => {
         if (!coupon.is_scratched) {
-            setupScratchCanvas(coupon.id);
+            const hint = getCouponHint(coupon);
+            setupScratchCanvas(coupon.id, hint);
         }
     });
 }
 
 // Scratch Canvas Physics
-function setupScratchCanvas(couponId) {
+function setupScratchCanvas(couponId, hint) {
     const canvas = document.getElementById(`scratch-canvas-${couponId}`);
     if (!canvas) return;
 
@@ -370,8 +402,8 @@ function setupScratchCanvas(couponId) {
     canvas.width = rect.width || 320;
     canvas.height = rect.height || 110;
 
-    // Paint Foil Layer
-    paintFoil(ctx, canvas.width, canvas.height);
+    // Paint Foil Layer with Hint
+    paintFoil(ctx, canvas.width, canvas.height, hint);
 
     let isScratching = false;
     let totalPixels = canvas.width * canvas.height;
@@ -447,8 +479,8 @@ function setupScratchCanvas(couponId) {
     });
 }
 
-// Paint glamorous champagne gold foil on canvas
-function paintFoil(ctx, width, height) {
+// Paint glamorous champagne gold foil on canvas with Hint
+function paintFoil(ctx, width, height, hint) {
     // 1. Radiant Gold Metallic Gradient
     const grad = ctx.createLinearGradient(0, 0, width, height);
     grad.addColorStop(0, '#F5D77F');
@@ -485,20 +517,45 @@ function paintFoil(ctx, width, height) {
     drawStar(ctx, 20, height - 20, 4, 3);
     drawStar(ctx, width - 20, height - 20, 4, 3);
 
-    // 5. Embossed foil text
-    ctx.font = 'bold 13px Quicksand, sans-serif';
+    // 5. Embossed foil text with Hint
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
+    ctx.font = 'bold 12px Quicksand, sans-serif';
     ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.fillText('✨ SCRATCH TO REVEAL PROMISE ✨', width / 2, height / 2 - 8);
-
+    ctx.fillText('✨ SCRATCH TO REVEAL ✨', width / 2, 23);
     ctx.fillStyle = '#5A3E06';
-    ctx.fillText('✨ SCRATCH TO REVEAL PROMISE ✨', width / 2, height / 2 - 9);
+    ctx.fillText('✨ SCRATCH TO REVEAL ✨', width / 2, 22);
 
-    ctx.font = 'bold 11px Quicksand, sans-serif';
-    ctx.fillStyle = '#7A5408';
-    ctx.fillText('🪙 Rub with finger or mouse', width / 2, height / 2 + 13);
+    // Centered hint banner on the foil
+    if (hint) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        const badgeW = Math.min(width - 30, 260);
+        const badgeH = 26;
+        const bx = (width - badgeW) / 2;
+        const by = height / 2 - 13;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(bx, by, badgeW, badgeH, 13);
+        } else {
+            ctx.rect(bx, by, badgeW, badgeH);
+        }
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(131, 92, 15, 0.35)';
+        ctx.stroke();
+
+        ctx.font = 'bold 11px Quicksand, sans-serif';
+        ctx.fillStyle = '#452E04';
+        let displayHint = hint;
+        if (displayHint.length > 34) {
+            displayHint = displayHint.substring(0, 32) + '...';
+        }
+        ctx.fillText(`💡 ${displayHint}`, width / 2, height / 2);
+    }
+
+    ctx.font = 'semibold 10px Quicksand, sans-serif';
+    ctx.fillStyle = '#6E4B07';
+    ctx.fillText('🪙 Rub with finger or mouse to unlock', width / 2, height - 18);
 }
 
 // Helper: draw cute stars on the foil
@@ -704,12 +761,15 @@ async function handleAddCoupon(event) {
     event.preventDefault();
     const titleInput = document.getElementById('coupon-title');
     const descInput = document.getElementById('coupon-desc');
+    const hintInput = document.getElementById('coupon-hint');
     const iconSelect = document.getElementById('coupon-icon');
     const submitBtn = document.getElementById('coupon-submit-btn');
 
     const title = titleInput.value.trim();
     const description = descInput.value.trim();
+    const customHint = hintInput ? hintInput.value.trim() : '';
     const icon = iconSelect.value;
+    const hint = customHint || getCouponHint({ title, description, icon });
 
     if (!title || !description) return;
 
@@ -735,7 +795,8 @@ async function handleAddCoupon(event) {
                 console.error('Insert coupon error:', error);
                 alert('Could not save to Supabase. Check credentials or table schema.');
             } else if (data) {
-                coupons.push(data[0]);
+                const inserted = { ...data[0], hint };
+                coupons.push(inserted);
                 saveLocalCoupons(coupons);
             }
         } catch (err) {
@@ -747,6 +808,7 @@ async function handleAddCoupon(event) {
             id: 'coupon-' + Date.now(),
             title,
             description,
+            hint,
             icon,
             is_scratched: false,
             is_redeemed: false,
@@ -758,6 +820,7 @@ async function handleAddCoupon(event) {
 
     titleInput.value = '';
     descInput.value = '';
+    if (hintInput) hintInput.value = '';
     submitBtn.disabled = false;
     submitBtn.innerText = 'Create Coupon ❤️';
     toggleAddCouponForm();
@@ -791,4 +854,48 @@ async function deleteCoupon(couponId, event) {
         console.warn('Delete coupon error:', e);
     }
 }
+
+// Reset All Coupons Handler
+async function handleResetAllCoupons() {
+    if (!confirm('Reset all love passes back to fresh unscratched state? 🎟️✨')) return;
+
+    coupons = coupons.map(c => ({
+        ...c,
+        is_scratched: false,
+        is_redeemed: false,
+        redeemed_at: null
+    }));
+
+    saveLocalCoupons(coupons);
+    renderCoupons();
+
+    try {
+        const client = await getSupabaseClient();
+        if (client) {
+            // Update all rows in date_coupons
+            const { error } = await client
+                .from('date_coupons')
+                .update({
+                    is_scratched: false,
+                    is_redeemed: false,
+                    redeemed_at: null
+                })
+                .neq('title', '___NEVER_MATCH___');
+
+            if (error) console.warn('Supabase reset error:', error);
+        }
+    } catch (e) {
+        console.warn('Reset all coupons error:', e);
+    }
+
+    if (typeof confetti === 'function') {
+        confetti({
+            particleCount: 50,
+            spread: 60,
+            origin: { y: 0.5 },
+            colors: ['#243B8F', '#FFF0C9', '#F5D77F']
+        });
+    }
+}
+
 
