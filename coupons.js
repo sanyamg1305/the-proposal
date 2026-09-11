@@ -182,7 +182,13 @@ async function fetchCoupons(client) {
         if (error) {
             console.error('Error fetching coupons:', error);
         } else if (data && data.length > 0) {
-            coupons = data;
+            // Keep any local custom coupons so user created passes are never lost
+            const currentCoupons = coupons && coupons.length > 0 ? coupons : (loadLocalCoupons() || []);
+            const localCustom = currentCoupons.filter(c => 
+                String(c.id).startsWith('coupon-') ||
+                !data.some(d => d.id == c.id || (d.title && d.title.trim().toLowerCase() === c.title.trim().toLowerCase()))
+            );
+            coupons = [...data, ...localCustom];
             saveLocalCoupons(coupons);
         } else if (data && data.length === 0) {
             await seedCoupons(client);
@@ -560,31 +566,26 @@ function paintFoil(ctx, width, height, hint) {
     ctx.fillStyle = '#5A3E06';
     ctx.fillText('✨ SCRATCH TO REVEAL ✨', width / 2, 24);
 
-    // Centered hint banner on the foil
-    if (hint) {
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
-        const badgeW = Math.min(width - 32, 270);
-        const badgeH = 28;
-        const bx = (width - badgeW) / 2;
-        const by = height / 2 - 14;
-        ctx.beginPath();
-        if (ctx.roundRect) {
-            ctx.roundRect(bx, by, badgeW, badgeH, 14);
-        } else {
-            ctx.rect(bx, by, badgeW, badgeH);
-        }
-        ctx.fill();
-        ctx.strokeStyle = 'rgba(131, 92, 15, 0.4)';
-        ctx.stroke();
-
-        ctx.font = 'bold 11px Quicksand, sans-serif';
-        ctx.fillStyle = '#452E04';
-        let displayHint = hint;
-        if (displayHint.length > 36) {
-            displayHint = displayHint.substring(0, 34) + '...';
-        }
-        ctx.fillText(`💡 ${displayHint}`, width / 2, height / 2);
+    // Centered mystery emblem badge (completely secret, ZERO clues that spoil the pass!)
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    const badgeW = Math.min(width - 32, 230);
+    const badgeH = 30;
+    const bx = (width - badgeW) / 2;
+    const by = height / 2 - 15;
+    ctx.beginPath();
+    if (ctx.roundRect) {
+        ctx.roundRect(bx, by, badgeW, badgeH, 15);
+    } else {
+        ctx.rect(bx, by, badgeW, badgeH);
     }
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(131, 92, 15, 0.45)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.font = 'bold 12px Quicksand, sans-serif';
+    ctx.fillStyle = '#452E04';
+    ctx.fillText('🔒 SECRET DATE PASS 🎁', width / 2, height / 2);
 
     ctx.font = 'semibold 10px Quicksand, sans-serif';
     ctx.fillStyle = '#6E4B07';
@@ -832,7 +833,7 @@ async function handleAddCoupon(event) {
     const title = titleInput.value.trim();
     const description = descInput.value.trim();
     const customHint = hintInput ? hintInput.value.trim() : '';
-    const icon = iconSelect.value;
+    const icon = iconSelect.value || '🎫';
     const hint = customHint || getCouponHint({ title, description, icon });
 
     if (!title || !description) return;
@@ -840,63 +841,115 @@ async function handleAddCoupon(event) {
     submitBtn.disabled = true;
     submitBtn.innerText = 'Creating...';
 
-    const client = await getSupabaseClient();
+    // Unique local identifier
+    const localId = 'coupon-' + Date.now();
+    const newCoupon = {
+        id: localId,
+        title,
+        description,
+        hint,
+        icon,
+        is_scratched: false,
+        is_redeemed: false,
+        redeemed_at: null,
+        created_at: new Date().toISOString()
+    };
 
-    if (client) {
-        try {
-            const { data, error } = await client
+    // 1. ALWAYS add to local state and localStorage so it displays instantly and is never lost!
+    coupons.push(newCoupon);
+    saveLocalCoupons(coupons);
+
+    // 2. Switch filter to 'all' so the new card is 100% guaranteed to be visible
+    activeFilter = 'all';
+    const filterButtons = document.querySelectorAll('.coupon-filter-btn');
+    filterButtons.forEach(btn => {
+        if (btn.getAttribute('data-filter') === 'all') {
+            btn.classList.add('bg-customAccent', 'text-customBg', 'shadow-[2px_2px_0px_0px_#243B8F]');
+            btn.classList.remove('bg-white', 'text-customAccent');
+        } else {
+            btn.classList.remove('bg-customAccent', 'text-customBg', 'shadow-[2px_2px_0px_0px_#243B8F]');
+            btn.classList.add('bg-white', 'text-customAccent');
+        }
+    });
+
+    // 3. Reset form fields and close form
+    titleInput.value = '';
+    descInput.value = '';
+    if (hintInput) hintInput.value = '';
+    submitBtn.disabled = false;
+    submitBtn.innerText = 'Create Love Pass ❤️';
+    toggleAddCouponForm();
+
+    // 4. Re-render the grid immediately with scratch physics attached
+    renderCoupons();
+
+    // 5. Smoothly scroll directly to the new coupon card & pulse-highlight it!
+    setTimeout(() => {
+        const newCard = document.getElementById(`card-container-${localId}`);
+        if (newCard) {
+            newCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            newCard.classList.add('ring-4', 'ring-amber-400', 'scale-[1.02]');
+            setTimeout(() => {
+                newCard.classList.remove('ring-4', 'ring-amber-400', 'scale-[1.02]');
+            }, 2500);
+        }
+    }, 200);
+
+    // 6. Confetti celebration!
+    if (typeof confetti === 'function') {
+        confetti({
+            particleCount: 70,
+            spread: 80,
+            origin: { y: 0.6 },
+            colors: ['#243B8F', '#FFF0C9', '#E74C3C', '#F39C12']
+        });
+    }
+
+    // 7. Background sync with Supabase if client is available
+    try {
+        const client = await getSupabaseClient();
+        if (client) {
+            // First attempt insert with hint
+            let res = await client
                 .from('date_coupons')
                 .insert([{
                     title,
                     description,
                     icon,
+                    hint,
                     is_scratched: false,
                     is_redeemed: false
                 }])
                 .select();
 
-            if (error) {
-                console.error('Insert coupon error:', error);
-                alert('Could not save to Supabase. Check credentials or table schema.');
-            } else if (data) {
-                const inserted = { ...data[0], hint };
-                coupons.push(inserted);
-                saveLocalCoupons(coupons);
+            // If table doesn't have 'hint' column, retry without hint
+            if (res.error && res.error.message && res.error.message.includes('hint')) {
+                res = await client
+                    .from('date_coupons')
+                    .insert([{
+                        title,
+                        description,
+                        icon,
+                        is_scratched: false,
+                        is_redeemed: false
+                    }])
+                    .select();
             }
-        } catch (err) {
-            console.error('Insert coupon exception:', err);
+
+            if (res.data && res.data[0]) {
+                const supabaseId = res.data[0].id;
+                const idx = coupons.findIndex(c => c.id === localId);
+                if (idx !== -1) {
+                    coupons[idx].id = supabaseId;
+                    saveLocalCoupons(coupons);
+                    renderCoupons();
+                }
+            } else if (res.error) {
+                console.warn('Supabase insert warning (card safely preserved locally):', res.error);
+            }
         }
-    } else {
-        // Local preview fallback
-        const newCoupon = {
-            id: 'coupon-' + Date.now(),
-            title,
-            description,
-            hint,
-            icon,
-            is_scratched: false,
-            is_redeemed: false,
-            redeemed_at: null
-        };
-        coupons.push(newCoupon);
-        saveLocalCoupons(coupons);
-    }
-
-    titleInput.value = '';
-    descInput.value = '';
-    if (hintInput) hintInput.value = '';
-    submitBtn.disabled = false;
-    submitBtn.innerText = 'Create Coupon ❤️';
-    toggleAddCouponForm();
-    renderCoupons();
-
-    if (typeof confetti === 'function') {
-        confetti({
-            particleCount: 60,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ['#243B8F', '#FFF0C9', '#E74C3C', '#F39C12']
-        });
+    } catch (err) {
+        console.warn('Supabase sync exception (card safely preserved locally):', err);
     }
 }
 
