@@ -81,12 +81,15 @@ create table if not exists public.date_coupons (
     id uuid default gen_random_uuid() primary key,
     title text not null,
     description text not null,
+    hint text default null,
     icon text not null default '🎫',
     is_scratched boolean not null default false,
     is_redeemed boolean not null default false,
     redeemed_at timestamp with time zone,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+alter table public.date_coupons add column if not exists hint text default null;
 
 alter table public.date_coupons enable row level security;
 

@@ -117,16 +117,23 @@
             </div>
 
             <!-- Add Coupon Form (Collapsible) -->
-            <div id="add-coupon-form" class="hidden bg-customBg border-2 border-customAccent rounded-2xl p-4 md:p-5 mb-6 shadow-[4px_4px_0px_0px_#243B8F] transition-all">
-                <h3 class="font-bold text-base mb-3 flex items-center gap-2">
-                    <span>💫</span> Create a new Love Coupon for Himi
-                </h3>
-                <form onsubmit="handleAddCoupon(event)" class="space-y-3">
+            <div id="add-coupon-form" class="hidden bg-customBg border-3 border-customAccent rounded-3xl p-5 md:p-6 mb-8 shadow-[6px_6px_0px_0px_#243B8F] transition-all">
+                <div class="flex items-center justify-between mb-3 border-b-2 border-customAccent/20 pb-2.5">
+                    <h3 class="font-bold text-base md:text-lg flex items-center gap-2 text-customAccent">
+                        <span>💫</span> Create a Custom Love Coupon for Himi
+                    </h3>
+                    <button type="button" onclick="toggleAddCouponForm()" class="text-xs font-bold px-2.5 py-1 rounded-full border border-customAccent hover:bg-white transition-all">
+                        ✕ Close
+                    </button>
+                </div>
+                <form onsubmit="handleAddCoupon(event)" class="space-y-3.5">
                     <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                         <div class="sm:col-span-3">
-                            <input id="coupon-title" type="text" placeholder="e.g., Free Coffee Delivery at Office ☕" required class="w-full px-3.5 py-2.5 rounded-xl border-2 border-customAccent bg-white text-customAccent font-medium text-sm focus:outline-none focus:ring-2 focus:ring-customAccent">
+                            <label class="block text-xs font-bold uppercase tracking-wider mb-1 opacity-75">Coupon Title</label>
+                            <input id="coupon-title" type="text" placeholder="e.g., Free Coffee Delivery at Office ☕" required class="w-full px-3.5 py-2.5 rounded-xl border-2 border-customAccent bg-white text-customAccent font-semibold text-sm focus:outline-none focus:ring-2 focus:ring-customAccent">
                         </div>
                         <div>
+                            <label class="block text-xs font-bold uppercase tracking-wider mb-1 opacity-75">Emoji Icon</label>
                             <select id="coupon-icon" class="w-full px-3.5 py-2.5 rounded-xl border-2 border-customAccent bg-white text-customAccent font-bold text-sm focus:outline-none">
                                 <option value="☕">☕ Coffee</option>
                                 <option value="🍦">🍦 Ice Cream</option>
@@ -137,22 +144,27 @@
                                 <option value="🚗">🚗 Drive</option>
                                 <option value="🤐">🤐 Peace</option>
                                 <option value="💆‍♀️">💆‍♀️ Massage</option>
+                                <option value="🍕">🍕 Pizza</option>
+                                <option value="🍫">🍫 Chocolate</option>
                                 <option value="🎫">🎫 Pass</option>
                                 <option value="💖">💖 Special</option>
                             </select>
                         </div>
-                    <div>
-                        <input id="coupon-hint" type="text" placeholder="Optional Teaser Hint (e.g. ☕ Secret desk delivery during a busy day)" class="w-full px-3.5 py-2.5 rounded-xl border-2 border-customAccent bg-white text-customAccent font-medium text-sm focus:outline-none focus:ring-2 focus:ring-customAccent">
                     </div>
                     <div>
-                        <textarea id="coupon-desc" rows="2" placeholder="e.g., Sanyam brings you your favorite iced beverage with zero delays and a big smile! ❤️" required class="w-full px-3.5 py-2 rounded-xl border-2 border-customAccent bg-white text-customAccent font-medium text-sm focus:outline-none focus:ring-2 focus:ring-customAccent"></textarea>
+                        <label class="block text-xs font-bold uppercase tracking-wider mb-1 opacity-75">Teaser Hint (embossed on scratch foil)</label>
+                        <input id="coupon-hint" type="text" placeholder="e.g., ☕ Secret desk delivery during a busy workday" class="w-full px-3.5 py-2.5 rounded-xl border-2 border-customAccent bg-white text-customAccent font-medium text-sm focus:outline-none focus:ring-2 focus:ring-customAccent">
                     </div>
-                    <div class="flex items-center justify-end gap-2">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider mb-1 opacity-75">Secret Reward / Terms (revealed after scratch)</label>
+                        <textarea id="coupon-desc" rows="2" placeholder="e.g., Sanyam sneaks to your desk with your favorite iced beverage with zero delays and a big smile! ❤️" required class="w-full px-3.5 py-2 rounded-xl border-2 border-customAccent bg-white text-customAccent font-medium text-sm focus:outline-none focus:ring-2 focus:ring-customAccent"></textarea>
+                    </div>
+                    <div class="flex items-center justify-end gap-2 pt-1">
                         <button type="button" onclick="toggleAddCouponForm()" class="px-4 py-2 rounded-full border-2 border-customAccent font-bold text-xs md:text-sm hover:bg-white transition-all">
                             Cancel
                         </button>
-                        <button type="submit" id="coupon-submit-btn" class="bg-customAccent text-customBg px-5 py-2 rounded-full font-bold text-xs md:text-sm hover:opacity-90 transition-all shadow-[2px_2px_0px_0px_#243B8F]">
-                            Create Coupon ❤️
+                        <button type="submit" id="coupon-submit-btn" class="bg-customAccent text-customBg px-6 py-2.5 rounded-full font-bold text-xs md:text-sm hover:scale-105 active:scale-95 transition-all shadow-[3px_3px_0px_0px_#243B8F]">
+                            Create Love Pass ❤️
                         </button>
                     </div>
                 </form>

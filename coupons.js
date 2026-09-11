@@ -379,7 +379,25 @@ function renderCoupons() {
 
             </div>
         `;
-    }).join('');
+    }).join('') + (activeFilter === 'all' || activeFilter === 'unscratched' ? `
+        <!-- Add Your Own Pass Ticket Card -->
+        <div onclick="toggleAddCouponForm()" class="ticket-card relative rounded-3xl border-3 border-dashed border-customAccent/70 p-6 shadow-[3px_3px_0px_0px_rgba(36,59,143,0.2)] hover:border-customAccent hover:shadow-[6px_6px_0px_0px_#243B8F] hover:bg-amber-50/60 cursor-pointer flex flex-col items-center justify-center text-center min-h-[300px] transition-all duration-300 group">
+            <div class="ticket-notch-left"></div>
+            <div class="ticket-notch-right"></div>
+            <div class="w-16 h-16 rounded-2xl bg-amber-100 border-2 border-customAccent flex items-center justify-center text-3xl mb-3 group-hover:scale-110 transition-transform shadow-[2px_2px_0px_0px_#243B8F]">
+                ✨
+            </div>
+            <h4 class="font-extrabold text-lg text-customAccent mb-1">
+                + Add Your Own Pass
+            </h4>
+            <p class="text-xs font-semibold opacity-75 max-w-[220px] leading-relaxed mb-4">
+                Create a custom love coupon for Himi with your own secret perks & teaser hint!
+            </p>
+            <span class="text-xs font-extrabold bg-customAccent text-customBg px-4 py-2 rounded-full shadow-[2px_2px_0px_0px_#FFF0C9] group-hover:scale-105 transition-all">
+                Create New Coupon 💫
+            </span>
+        </div>
+    ` : '');
 
     // Attach scratch physics to all unscratched cards
     filtered.forEach(coupon => {
