@@ -132,6 +132,9 @@ function createFloatingBook() {
 }
 setInterval(createFloatingBook, 800);
 
+// Pending room state for invite modal
+let pendingInviteRoom = null;
+
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
     // Sound icon initial state
@@ -141,15 +144,75 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Role buttons highlight
     updateRoleSelectionUI();
 
-    // Check URL parameters for direct room join (e.g. sequence.html?room=HIMI)
+    // Check URL parameters for direct room join (e.g. sequence.html?room=HIMI&role=player2)
     const urlParams = new URLSearchParams(window.location.search);
     const roomParam = urlParams.get('room');
+    const roleParam = urlParams.get('role');
+
+    // If role is explicitly specified in link (e.g. WhatsApp invite sent to Himi)
+    if (roleParam === 'player1' || roleParam === 'player2') {
+        myRole = roleParam;
+        localStorage.setItem('sequence_player_role', roleParam);
+        updateRoleSelectionUI();
+    }
+
     if (roomParam) {
-        joinPresetRoom(roomParam.trim().toUpperCase());
+        const cleanRoom = roomParam.trim().toUpperCase();
+        const input = document.getElementById('room-code-input');
+        if (input) input.value = cleanRoom;
+
+        // Check if player has already confirmed joining this room in this active tab session
+        const sessionKey = 'sequence_joined_session_' + cleanRoom;
+        if (sessionStorage.getItem(sessionKey) === 'true') {
+            joinPresetRoom(cleanRoom);
+        } else {
+            // First time opening link: show invite modal so Himi can easily pick/verify her name!
+            showInviteJoinModal(cleanRoom);
+        }
     } else {
         checkSupabaseConnectivity();
     }
 });
+
+// Modal for Join via Invite Link
+function showInviteJoinModal(roomId) {
+    pendingInviteRoom = roomId;
+    const modal = document.getElementById('invite-join-modal');
+    const roomDisp = document.getElementById('invite-room-code-display');
+    if (roomDisp) roomDisp.textContent = roomId;
+    updateRoleSelectionUI();
+    if (modal) modal.classList.remove('hidden');
+    checkSupabaseConnectivity();
+}
+
+function confirmInviteJoin() {
+    if (!pendingInviteRoom) return;
+    const room = pendingInviteRoom;
+    sessionStorage.setItem('sequence_joined_session_' + room, 'true');
+    const modal = document.getElementById('invite-join-modal');
+    if (modal) modal.classList.add('hidden');
+    joinPresetRoom(room);
+}
+
+function dismissInviteModal() {
+    const modal = document.getElementById('invite-join-modal');
+    if (modal) modal.classList.add('hidden');
+    checkSupabaseConnectivity();
+}
+
+// In-Game Role Switcher
+function togglePlayerRole() {
+    myRole = (myRole === 'player1') ? 'player2' : 'player1';
+    localStorage.setItem('sequence_player_role', myRole);
+    updateRoleSelectionUI();
+    if (localGameState) {
+        renderBoard();
+        renderHands();
+        updateScoreboard();
+    }
+    playCardSound();
+    showActionPrompt(`Switched player! You are now playing as ${myRole === 'player1' ? 'Sanyam 🔵' : 'Himi 🌸'}.`);
+}
 
 // Check Supabase connectivity
 async function checkSupabaseConnectivity() {
@@ -180,6 +243,7 @@ function selectRole(role) {
 }
 
 function updateRoleSelectionUI() {
+    // 1. Main Lobby role buttons
     const p1Btn = document.getElementById('role-btn-p1');
     const p2Btn = document.getElementById('role-btn-p2');
     if (p1Btn && p2Btn) {
@@ -190,6 +254,31 @@ function updateRoleSelectionUI() {
             p2Btn.className = 'role-btn active flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-2 border-player2Color bg-player2Color text-white font-extrabold text-sm shadow-[2px_2px_0px_0px_#E25B7B]';
             p1Btn.className = 'role-btn flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-2 border-customAccent bg-white text-customAccent font-extrabold text-sm hover:bg-blue-50';
         }
+    }
+
+    // 2. Invite Modal role buttons
+    const ip1Btn = document.getElementById('invite-role-btn-p1');
+    const ip2Btn = document.getElementById('invite-role-btn-p2');
+    if (ip1Btn && ip2Btn) {
+        if (myRole === 'player1') {
+            ip1Btn.className = 'role-btn active flex items-center justify-center gap-2 py-3 px-3 rounded-xl border-2 border-customAccent bg-customAccent text-customBg font-extrabold text-sm shadow-[2px_2px_0px_0px_#243B8F]';
+            ip2Btn.className = 'role-btn flex items-center justify-center gap-2 py-3 px-3 rounded-xl border-2 border-customAccent bg-white text-customAccent font-extrabold text-sm hover:bg-pink-50';
+        } else {
+            ip2Btn.className = 'role-btn active flex items-center justify-center gap-2 py-3 px-3 rounded-xl border-2 border-player2Color bg-player2Color text-white font-extrabold text-sm shadow-[2px_2px_0px_0px_#E25B7B]';
+            ip1Btn.className = 'role-btn flex items-center justify-center gap-2 py-3 px-3 rounded-xl border-2 border-customAccent bg-white text-customAccent font-extrabold text-sm hover:bg-blue-50';
+        }
+    }
+
+    // 3. Invite button text
+    const inviteLabel = document.getElementById('invite-player-name-label');
+    if (inviteLabel) {
+        inviteLabel.textContent = myRole === 'player1' ? 'Sanyam 🔵' : 'Himi 🌸';
+    }
+
+    // 4. In-Game Role Switch button text
+    const switchTarget = document.getElementById('switch-role-target-name');
+    if (switchTarget) {
+        switchTarget.textContent = myRole === 'player1' ? 'Himi 🌸' : 'Sanyam 🔵';
     }
 }
 
@@ -332,6 +421,44 @@ async function startRoomSession(roomId) {
                 await client.from('sequence_games').upsert(state);
             } catch (err) {
                 console.warn('Upsert initial game error:', err);
+            }
+        }
+    } else {
+        // If state exists: ensure target_sequences is valid (defaults to 2)
+        if (!state.target_sequences || state.target_sequences < 1) {
+            state.target_sequences = targetSequencesRule || 2;
+        }
+
+        // Recalculate sequences with official Sequence rules to clear premature false wins
+        if (state.board) {
+            const p1Seqs = findSequencesForPlayer(state.board, 'player1');
+            const p2Seqs = findSequencesForPlayer(state.board, 'player2');
+            state.player1_sequences = p1Seqs.length;
+            state.player2_sequences = p2Seqs.length;
+
+            const target = state.target_sequences || 2;
+            if (state.player1_sequences >= target) {
+                state.winner = 'player1';
+                state.status = 'finished';
+            } else if (state.player2_sequences >= target) {
+                state.winner = 'player2';
+                state.status = 'finished';
+            } else {
+                // If it was prematurely marked as finished by the 6-in-a-row bug: resume game!
+                if (state.winner) {
+                    state.winner = null;
+                    state.status = 'active';
+                    if (client) {
+                        try {
+                            await client.from('sequence_games').update({
+                                winner: null,
+                                status: 'active',
+                                player1_sequences: state.player1_sequences,
+                                player2_sequences: state.player2_sequences
+                            }).eq('id', roomId);
+                        } catch (e) {}
+                    }
+                }
             }
         }
     }
@@ -609,10 +736,12 @@ function renderHands() {
     // Role Label & Chip preview
     const roleLabel = document.getElementById('your-role-label');
     const chipPreview = document.getElementById('your-chip-preview');
+    const oppLabel = document.getElementById('opponent-name-label');
     if (roleLabel) roleLabel.textContent = myRole === 'player1' ? 'Sanyam (Blue 🔵)' : 'Himi (Pink 🌸)';
     if (chipPreview) {
         chipPreview.className = myRole === 'player1' ? 'w-4 h-4 rounded-full bg-player1Color inline-block shadow' : 'w-4 h-4 rounded-full bg-player2Color inline-block shadow';
     }
+    if (oppLabel) oppLabel.textContent = myRole === 'player1' ? 'Himi 🌸:' : 'Sanyam 🔵:';
 }
 
 // Create Card DOM Element for Hand
@@ -866,7 +995,7 @@ function checkAndAwardSequences() {
     });
     localGameState.locked_chips = Array.from(allLocked);
 
-    // Check win condition
+    // Check win condition (Official Sequence requires target sequences, default 2)
     const target = localGameState.target_sequences || 2;
     if (localGameState.player1_sequences >= target) {
         localGameState.winner = 'player1';
@@ -874,13 +1003,102 @@ function checkAndAwardSequences() {
     } else if (localGameState.player2_sequences >= target) {
         localGameState.winner = 'player2';
         localGameState.status = 'finished';
+    } else {
+        localGameState.winner = null;
+        localGameState.status = 'active';
     }
 }
 
-// Find all unique valid 5-chip sequences for player
+// Helper: check if coordinate is a board corner space
+function isCornerSpace(r, c) {
+    return (r === 0 || r === 9) && (c === 0 || c === 9);
+}
+
+// Check if two sequences are legally compatible per official Sequence rules:
+// - Between any two sequences, at most ONE non-corner space may be shared.
+// - A straight line of 6, 7, or 8 chips is ONLY ONE sequence.
+function areSequencesCompatible(seqA, seqB) {
+    let sharedNonCornerCount = 0;
+    for (const [rA, cA] of seqA.coords) {
+        if (isCornerSpace(rA, cA)) continue;
+        for (const [rB, cB] of seqB.coords) {
+            if (rA === rB && cA === cB) {
+                sharedNonCornerCount++;
+                if (sharedNonCornerCount > 1) return false;
+            }
+        }
+    }
+    return true;
+}
+
+// Find maximal collection of mutually compatible sequences
+function getMaxMutuallyCompatibleSequences(candidates) {
+    if (!candidates || candidates.length === 0) return [];
+    if (candidates.length === 1) return [candidates[0]];
+
+    let bestSet = [];
+
+    function search(startIdx, currentSet, chipUsageMap) {
+        if (currentSet.length > bestSet.length) {
+            bestSet = [...currentSet];
+        }
+        // Sequence game targets at most 2 sequences (official win condition)
+        if (bestSet.length >= 2) return;
+
+        for (let i = startIdx; i < candidates.length; i++) {
+            const cand = candidates[i];
+
+            // 1. Must share at most 1 non-corner chip with every already-chosen sequence
+            let isCompatible = true;
+            for (const chosen of currentSet) {
+                if (!areSequencesCompatible(chosen, cand)) {
+                    isCompatible = false;
+                    break;
+                }
+            }
+            if (!isCompatible) continue;
+
+            // 2. No individual chip may be used in more than 2 sequences total
+            let chipOverused = false;
+            for (const [r, c] of cand.coords) {
+                if (isCornerSpace(r, c)) continue;
+                const count = chipUsageMap.get(`${r},${c}`) || 0;
+                if (count >= 2) {
+                    chipOverused = true;
+                    break;
+                }
+            }
+            if (chipOverused) continue;
+
+            // Add candidate to set
+            for (const [r, c] of cand.coords) {
+                if (!isCornerSpace(r, c)) {
+                    chipUsageMap.set(`${r},${c}`, (chipUsageMap.get(`${r},${c}`) || 0) + 1);
+                }
+            }
+            currentSet.push(cand);
+
+            search(i + 1, currentSet, chipUsageMap);
+
+            // Backtrack
+            currentSet.pop();
+            for (const [r, c] of cand.coords) {
+                if (!isCornerSpace(r, c)) {
+                    const count = chipUsageMap.get(`${r},${c}`) - 1;
+                    if (count <= 0) chipUsageMap.delete(`${r},${c}`);
+                    else chipUsageMap.set(`${r},${c}`, count);
+                }
+            }
+        }
+    }
+
+    search(0, [], new Map());
+    return bestSet;
+}
+
+// Find all unique valid sequences for player
 function findSequencesForPlayer(board, player) {
-    const sequences = [];
-    const usedChips = new Map(); // tracks how many times chip is used (max 1 sharing per Sequence rules)
+    const candidates = [];
 
     // Direction vectors: Horizontal [0,1], Vertical [1,0], Diagonal DR [1,1], Diagonal UR [-1,1]
     const directions = [
@@ -908,8 +1126,7 @@ function findSequencesForPlayer(board, player) {
                     const currC = c + step * dc;
                     coords.push([currR, currC]);
 
-                    const isCorner = SEQUENCE_BOARD_LAYOUT[currR][currC] === 'CORNER';
-                    if (isCorner) {
+                    if (isCornerSpace(currR, currC)) {
                         // Corner counts as wild for both players
                     } else {
                         nonCornerCount++;
@@ -920,32 +1137,15 @@ function findSequencesForPlayer(board, player) {
                     }
                 }
 
-                // A valid sequence must have at least 3-4 actual chips + corners
-                if (valid && nonCornerCount >= 4) {
-                    // Sequence rule: Chips may be shared by at most 1 other sequence
-                    let overShared = false;
-                    coords.forEach(([cr, cc]) => {
-                        if (SEQUENCE_BOARD_LAYOUT[cr][cc] !== 'CORNER') {
-                            const count = usedChips.get(`${cr},${cc}`) || 0;
-                            if (count >= 2) overShared = true;
-                        }
-                    });
-
-                    if (!overShared) {
-                        sequences.push({ coords });
-                        coords.forEach(([cr, cc]) => {
-                            if (SEQUENCE_BOARD_LAYOUT[cr][cc] !== 'CORNER') {
-                                const count = usedChips.get(`${cr},${cc}`) || 0;
-                                usedChips.set(`${cr},${cc}`, count + 1);
-                            }
-                        });
-                    }
+                // A valid sequence must have at least 3 actual chips (if 2 corners) or 4 (if 1 corner) or 5 (no corners)
+                if (valid && nonCornerCount >= 3) {
+                    candidates.push({ coords });
                 }
             }
         }
     }
 
-    return sequences;
+    return getMaxMutuallyCompatibleSequences(candidates);
 }
 
 // AI Player Logic (Play vs Sanyam AI or Himi AI)
@@ -1328,6 +1528,9 @@ function returnToLobby() {
 }
 
 function confirmExitGame() {
+    if (activeRoomId) {
+        sessionStorage.removeItem('sequence_joined_session_' + activeRoomId);
+    }
     document.getElementById('game-arena').classList.add('hidden');
     document.getElementById('game-lobby').classList.remove('hidden');
     selectedCardIndex = null;
@@ -1337,19 +1540,31 @@ function confirmExitGame() {
     } catch (e) {}
 }
 
+async function confirmResetCurrentGame() {
+    if (!confirm("Start a new game with fresh cards and clear board?")) return;
+    localGameState = createInitialGameState(activeRoomId, targetSequencesRule || 2);
+    await persistAndBroadcastGameState(localGameState);
+    renderActiveGame();
+    showActionPrompt("🔄 Fresh game started! Target: 2 Sequences 🏆");
+}
+
 // Share Links
 function copyRoomLink() {
-    const url = window.location.origin + window.location.pathname + '?room=' + encodeURIComponent(activeRoomId);
+    const oppRole = myRole === 'player1' ? 'player2' : 'player1';
+    const oppName = oppRole === 'player2' ? 'Himi 🌸' : 'Sanyam 🔵';
+    const url = window.location.origin + window.location.pathname + '?room=' + encodeURIComponent(activeRoomId) + '&role=' + oppRole;
     navigator.clipboard.writeText(url).then(() => {
-        showActionPrompt("📋 Room invite link copied to clipboard!");
+        showActionPrompt(`📋 Room invite link copied! (Configured for ${oppName})`);
     }).catch(() => {
-        prompt("Copy this invite link for Himi:", url);
+        prompt("Copy this invite link for " + oppName + ":", url);
     });
 }
 
 function shareGameWhatsApp() {
-    const url = window.location.origin + window.location.pathname + '?room=' + encodeURIComponent(activeRoomId);
-    const msg = `Hey Himi! 🥰 I set up our Sequence game board! Tap here to join me in Room "${activeRoomId}":\n\n${url}\n\nGet ready for some serious competition! ❤️🎲`;
+    const oppRole = myRole === 'player1' ? 'player2' : 'player1';
+    const recipientName = oppRole === 'player2' ? 'Himi' : 'Sanyam';
+    const url = window.location.origin + window.location.pathname + '?room=' + encodeURIComponent(activeRoomId) + '&role=' + oppRole;
+    const msg = `Hey ${recipientName}! 🥰 I set up our Sequence game board! Tap here to join me in Room "${activeRoomId}":\n\n${url}\n\nGet ready for some serious competition! ❤️🎲`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`, '_blank');
 }
 

@@ -287,19 +287,25 @@
             </div>
 
             <!-- Share Room Bar (For online play) -->
-            <div id="share-room-bar" class="w-full flex items-center justify-between bg-amber-100/90 border-2 border-customAccent/60 rounded-xl px-3 py-1.5 mb-2 text-xs font-bold">
-                <div class="flex items-center gap-2">
+            <div id="share-room-bar" class="w-full flex items-center justify-between bg-amber-100/90 border-2 border-customAccent/60 rounded-xl px-2.5 sm:px-3 py-1.5 mb-2 text-xs font-bold flex-wrap gap-2">
+                <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                     <span class="text-amber-950">Room: <strong id="active-room-display" class="font-mono text-customAccent text-sm uppercase">HIMI</strong></span>
-                    <button onclick="copyRoomLink()" class="bg-white text-customAccent px-2.5 py-0.5 rounded-md border border-customAccent text-[11px] font-extrabold hover:bg-amber-50" title="Copy Invite Link">
+                    <button onclick="copyRoomLink()" class="bg-white text-customAccent px-2.5 py-0.5 rounded-md border border-customAccent text-[11px] font-extrabold hover:bg-amber-50 transition-all shadow-xs" title="Copy Invite Link">
                         📋 Copy Link
                     </button>
+                    <button onclick="shareGameWhatsApp()" class="bg-emerald-600 text-white px-2.5 py-0.5 rounded-md font-bold text-[11px] hover:bg-emerald-700 flex items-center gap-1 shadow-sm transition-all">
+                        <span>💬</span> WhatsApp
+                    </button>
                 </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="shareGameWhatsApp()" class="bg-emerald-600 text-white px-2.5 py-0.5 rounded-md font-bold text-[11px] hover:bg-emerald-700 flex items-center gap-1 shadow-sm">
-                        <span>💬</span> WhatsApp Himi
+                <div class="flex items-center gap-1.5 sm:gap-2">
+                    <button id="switch-role-bar-btn" onclick="togglePlayerRole()" class="bg-white text-customAccent border-2 border-customAccent px-2.5 py-0.5 rounded-md text-[11px] font-extrabold hover:bg-pink-50 flex items-center gap-1 shadow-sm transition-all" title="Switch player role">
+                        <span>🔄 Switch to <span id="switch-role-target-name">Himi 🌸</span></span>
+                    </button>
+                    <button onclick="confirmResetCurrentGame()" class="bg-white text-amber-900 border border-amber-400 px-2 py-0.5 rounded-md text-[11px] font-bold hover:bg-amber-100 shadow-xs transition-all" title="Deal fresh cards and clear board for a new round">
+                        🔄 Reset
                     </button>
                     <button onclick="confirmExitGame()" class="text-red-700 opacity-60 hover:opacity-100 text-[11px] underline">
-                        Leave Room
+                        Leave
                     </button>
                 </div>
             </div>
@@ -327,9 +333,12 @@
             <!-- YOUR HAND (Interactive Cards at Bottom) -->
             <div class="w-full bg-[#fff8e7] border-3 border-customAccent rounded-2xl p-2.5 sm:p-3 shadow-[4px_4px_0px_0px_#243B8F]">
                 <div class="flex items-center justify-between mb-1.5 px-1">
-                    <div class="flex items-center gap-1.5">
+                    <div class="flex items-center gap-2">
                         <span id="your-chip-preview" class="w-4 h-4 rounded-full bg-player1Color inline-block shadow"></span>
                         <span class="text-xs font-black text-customAccent">Your Hand: <span id="your-role-label">Sanyam</span></span>
+                        <button onclick="togglePlayerRole()" class="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 border border-customAccent text-customAccent hover:bg-pink-100 transition-all shadow-xs" title="Switch player role">
+                            Switch ⇄
+                        </button>
                     </div>
 
                     <!-- Quick Emoji Reactions Tray -->
@@ -366,6 +375,44 @@
         </div>
 
     </main>
+
+    <!-- JOIN ROOM INVITE MODAL (Shown when opened via room invite link) -->
+    <div id="invite-join-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-[#fff8e7] border-4 border-customAccent rounded-3xl p-6 md:p-8 max-w-md w-full text-center space-y-4 shadow-2xl animate-fade-in">
+            <span class="text-4xl md:text-5xl">🎲🎴</span>
+            <h2 class="font-sacramento text-4xl md:text-5xl font-bold text-customAccent leading-none">Sequence Invite!</h2>
+            <div class="inline-block bg-amber-100 border-2 border-customAccent px-4 py-1.5 rounded-full text-xs font-black text-customAccent uppercase tracking-wider">
+                Room: <span id="invite-room-code-display" class="font-mono text-sm text-customAccent font-black">HIMI</span>
+            </div>
+            <p class="text-xs md:text-sm font-semibold opacity-90 max-w-xs mx-auto">
+                Select who you are playing as to get your cards and join the game board!
+            </p>
+
+            <div class="bg-amber-50/90 border-2 border-customAccent rounded-2xl p-4 shadow-[3px_3px_0px_0px_#243B8F] text-left">
+                <label class="block text-xs font-extrabold uppercase tracking-wider mb-2.5 text-customAccent opacity-80 text-center">
+                    Who are you playing as?
+                </label>
+                <div class="grid grid-cols-2 gap-3">
+                    <button type="button" onclick="selectRole('player1')" id="invite-role-btn-p1" class="role-btn flex items-center justify-center gap-2 py-3 px-3 rounded-xl border-2 border-customAccent bg-white text-customAccent font-extrabold text-sm transition-all hover:scale-[1.02]">
+                        <span>🔵</span> Sanyam
+                    </button>
+                    <button type="button" onclick="selectRole('player2')" id="invite-role-btn-p2" class="role-btn flex items-center justify-center gap-2 py-3 px-3 rounded-xl border-2 border-player2Color bg-player2Color text-white font-extrabold text-sm shadow-[2px_2px_0px_0px_#E25B7B] transition-all hover:scale-[1.02]">
+                        <span>🌸</span> Himi
+                    </button>
+                </div>
+            </div>
+
+            <button id="invite-confirm-btn" onclick="confirmInviteJoin()" class="w-full bg-customAccent text-customBg py-3.5 px-6 rounded-2xl font-extrabold text-base md:text-lg flex items-center justify-center gap-2 shadow-[4px_4px_0px_0px_#FFF0C9] border-2 border-customAccent hover:scale-[1.02] active:scale-[0.98] transition-all">
+                <span>Enter Room as <span id="invite-player-name-label">Himi 🌸</span></span> ➜
+            </button>
+
+            <div>
+                <button onclick="dismissInviteModal()" class="text-xs text-customAccent opacity-70 underline hover:opacity-100 font-bold">
+                    Or return to game lobby
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- Discard Pile Modal (Optional inspection) -->
     <div id="discard-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
