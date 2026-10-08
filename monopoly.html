@@ -460,20 +460,23 @@
         </div>
     </div>
 
-    <!-- CARD PLAY MODAL (Action Sheet when card in hand is tapped) -->
-    <div id="card-play-modal" class="hidden fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-[#fff8e7] border-4 border-customAccent rounded-3xl p-5 sm:p-6 max-w-sm w-full text-center space-y-4 shadow-2xl">
+    <!-- CARD PLAY MODAL (Action Sheet when card in hand is tapped or inspected) -->
+    <div id="card-play-modal" class="hidden fixed inset-0 bg-black/65 z-50 flex items-center justify-center p-3 sm:p-4 backdrop-blur-sm">
+        <div class="bg-[#fff8e7] border-4 border-customAccent rounded-3xl p-4 sm:p-6 max-w-sm w-full text-center space-y-3 sm:space-y-4 shadow-2xl max-h-[92vh] overflow-y-auto">
             <div id="play-modal-card-preview" class="flex justify-center">
-                <!-- Big card preview -->
+                <!-- Big card preview with Rent Table -->
             </div>
-            <h3 id="play-modal-card-title" class="font-extrabold text-base text-customAccent">Card Title</h3>
+            <h3 id="play-modal-card-title" class="font-extrabold text-base sm:text-lg text-customAccent">Card Title</h3>
             <p id="play-modal-card-desc" class="text-xs font-semibold opacity-80 px-2">Card description</p>
+
+            <!-- Dynamic Rent Details Section -->
+            <div id="play-modal-rent-details" class="text-left empty:hidden"></div>
 
             <div class="space-y-2 pt-1" id="play-modal-options">
                 <!-- Action buttons dynamically inserted -->
             </div>
 
-            <button onclick="closeCardPlayModal()" class="w-full bg-slate-200 text-slate-800 py-2 rounded-xl font-bold text-xs hover:bg-slate-300 transition-all">
+            <button id="play-modal-cancel-btn" onclick="closeCardPlayModal()" class="w-full bg-slate-200 text-slate-800 py-2.5 rounded-xl font-bold text-xs hover:bg-slate-300 transition-all">
                 Cancel
             </button>
         </div>

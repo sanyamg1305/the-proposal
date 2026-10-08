@@ -964,50 +964,138 @@ function openCardPlayModal(card, index) {
     const preview = document.getElementById('play-modal-card-preview');
     const title = document.getElementById('play-modal-card-title');
     const desc = document.getElementById('play-modal-card-desc');
+    const rentDetails = document.getElementById('play-modal-rent-details');
     const options = document.getElementById('play-modal-options');
+    const cancelBtn = document.getElementById('play-modal-cancel-btn');
 
     if (!modal) return;
 
     if (title) title.textContent = card.name;
     if (desc) desc.textContent = card.desc || '';
+    if (cancelBtn) cancelBtn.textContent = (index !== null && index !== undefined) ? 'Cancel' : 'Close';
 
     if (preview) {
         preview.innerHTML = renderCardMiniHTML(card, true);
     }
 
+    if (rentDetails) {
+        rentDetails.innerHTML = '';
+        if (card.type === 'property' || card.type === 'wildcard') {
+            const colorKey = card.currentColor || card.color || (card.colors ? card.colors[0] : null);
+            if (colorKey && PROPERTY_SETS_CONFIG[colorKey]) {
+                const conf = PROPERTY_SETS_CONFIG[colorKey];
+                const myProps = getCurrentPlayerProperties();
+                const owned = (myProps[colorKey] || []);
+                const currentCount = owned.length;
+                const nextCount = Math.min(currentCount + 1, conf.size);
+                const currentRent = currentCount > 0 ? (conf.rents[currentCount - 1] || 0) : 0;
+                const nextRent = conf.rents[nextCount - 1] || 0;
+
+                rentDetails.innerHTML = `
+                    <div class="bg-amber-100/80 border border-amber-300 rounded-2xl p-3 my-2 text-left space-y-2">
+                        <div class="flex items-center justify-between text-xs font-black text-customAccent pb-1 border-b border-amber-200">
+                            <span>🏷️ Rent Table: ${conf.emoji} ${conf.name}</span>
+                            <span class="text-[10px] text-amber-900 font-bold">${conf.size} cards to complete</span>
+                        </div>
+                        <div class="grid grid-cols-${conf.rents.length} gap-1.5 text-center">
+                            ${conf.rents.map((r, i) => {
+                                const isFull = i === conf.rents.length - 1;
+                                const isNext = (i + 1) === nextCount && (index !== null && index !== undefined);
+                                const isCurrent = (i + 1) === currentCount;
+                                return `
+                                    <div class="p-1.5 rounded-lg border text-[10px] ${isNext ? 'bg-emerald-100 border-emerald-500 font-black text-emerald-950 shadow-xs' : (isCurrent ? 'bg-amber-200 border-amber-400 font-bold' : 'bg-white border-slate-200 text-slate-700 font-semibold')}">
+                                        <div class="text-[8px] uppercase font-bold opacity-75">${i + 1} ${isFull ? 'Full Set' : 'Prop'}</div>
+                                        <div class="text-xs font-black text-emerald-800">$${r}M</div>
+                                        ${isNext ? '<div class="text-[7.5px] text-emerald-700 font-bold">Laying this!</div>' : (isCurrent ? '<div class="text-[7.5px] text-amber-800 font-bold">Current</div>' : '')}
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                        <div class="text-[10px] text-customAccent font-bold bg-white/90 rounded-lg p-2 border border-amber-200/60 leading-snug">
+                            ${(index === null || index === undefined)
+                                ? `ℹ️ You currently own <strong>${currentCount}/${conf.size}</strong> in this set (Current Rent: <strong>$${currentRent}M</strong>)`
+                                : (currentCount === 0 
+                                    ? `💡 Laying this starts your <strong>${conf.name}</strong> set! (Yields <strong>$${conf.rents[0]}M</strong> rent with Rent cards)` 
+                                    : (nextCount === conf.size 
+                                        ? `⭐ Laying this COMPLETES your full set! (Rent jumps from <strong>$${currentRent}M</strong> ➔ <strong>$${nextRent}M</strong>!)` 
+                                        : `📈 You own ${currentCount}/${conf.size} placed. (Rent increases from <strong>$${currentRent}M</strong> ➔ <strong>$${nextRent}M</strong>!)`))}
+                        </div>
+                    </div>
+                `;
+            }
+        } else if (card.type === 'rent') {
+            const myProps = getCurrentPlayerProperties();
+            const colorsToCheck = card.isWildRent 
+                ? Object.keys(myProps).filter(k => myProps[k] && myProps[k].length > 0)
+                : (card.colors || []);
+
+            if (colorsToCheck.length > 0) {
+                const list = colorsToCheck.map(cKey => {
+                    const cConf = PROPERTY_SETS_CONFIG[cKey];
+                    if (!cConf) return '';
+                    const cCards = myProps[cKey] || [];
+                    const cRent = cCards.length > 0 ? (cConf.rents[Math.min(cCards.length - 1, cConf.rents.length - 1)] || 0) : 0;
+                    return `
+                        <div class="flex items-center justify-between text-xs p-1.5 rounded-lg ${cCards.length > 0 ? 'bg-emerald-50 border border-emerald-300 font-bold' : 'bg-slate-50 border border-slate-200 opacity-60'}">
+                            <span>${cConf.emoji} ${cConf.name} (${cCards.length}/${cConf.size} owned)</span>
+                            <span class="font-black ${cCards.length > 0 ? 'text-emerald-800' : 'text-slate-500'}">${cCards.length > 0 ? `Demands $${cRent}M` : 'No cards placed'}</span>
+                        </div>
+                    `;
+                }).join('');
+
+                rentDetails.innerHTML = `
+                    <div class="bg-amber-100/80 border border-amber-300 rounded-2xl p-3 my-2 text-left space-y-1.5">
+                        <div class="text-xs font-black text-customAccent pb-1 border-b border-amber-200">
+                            🏷️ Rent Demands Available On Your Table:
+                        </div>
+                        ${list}
+                    </div>
+                `;
+            }
+        }
+    }
+
     if (options) {
         options.innerHTML = '';
 
-        // Option 1: Bank as Money (Available for Money & Action cards)
-        if (card.value > 0) {
-            const bankBtn = document.createElement('button');
-            bankBtn.className = 'w-full bg-emerald-600 text-white py-2.5 px-4 rounded-xl font-black text-xs hover:bg-emerald-700 shadow transition-all flex items-center justify-center gap-1.5';
-            bankBtn.innerHTML = `<span>💰 Deposit in Bank ($${card.value}M)</span>`;
-            bankBtn.onclick = () => executeCardAction('bank', index);
-            options.appendChild(bankBtn);
-        }
+        if (index !== null && index !== undefined) {
+            // Option 1: Bank as Money (Available for Money & Action cards)
+            if (card.value > 0) {
+                const bankBtn = document.createElement('button');
+                bankBtn.className = 'w-full bg-emerald-600 text-white py-2.5 px-4 rounded-xl font-black text-xs hover:bg-emerald-700 shadow transition-all flex items-center justify-center gap-1.5';
+                bankBtn.innerHTML = `<span>💰 Deposit in Bank ($${card.value}M)</span>`;
+                bankBtn.onclick = () => executeCardAction('bank', index);
+                options.appendChild(bankBtn);
+            }
 
-        // Option 2: Play as Property (For Property & Wildcard)
-        if (card.type === 'property' || card.type === 'wildcard') {
-            const propBtn = document.createElement('button');
-            propBtn.className = 'w-full bg-customAccent text-customBg py-2.5 px-4 rounded-xl font-black text-xs hover:scale-102 shadow transition-all flex items-center justify-center gap-1.5';
-            propBtn.innerHTML = `<span>🏡 Lay as Date Property</span>`;
-            propBtn.onclick = () => executeCardAction('property', index);
-            options.appendChild(propBtn);
-        }
+            // Option 2: Play as Property (For Property & Wildcard)
+            if (card.type === 'property' || card.type === 'wildcard') {
+                const propBtn = document.createElement('button');
+                propBtn.className = 'w-full bg-customAccent text-customBg py-2.5 px-4 rounded-xl font-black text-xs hover:scale-102 shadow transition-all flex items-center justify-center gap-1.5';
+                propBtn.innerHTML = `<span>🏡 Lay as Date Property</span>`;
+                propBtn.onclick = () => executeCardAction('property', index);
+                options.appendChild(propBtn);
+            }
 
-        // Option 3: Play Action Card
-        if (card.type === 'action' || card.type === 'rent') {
-            const actBtn = document.createElement('button');
-            actBtn.className = 'w-full bg-amber-500 text-amber-950 py-2.5 px-4 rounded-xl font-black text-xs hover:bg-amber-400 shadow transition-all flex items-center justify-center gap-1.5';
-            actBtn.innerHTML = `<span>⚡ Play Action / Rent</span>`;
-            actBtn.onclick = () => executeCardAction('action', index);
-            options.appendChild(actBtn);
+            // Option 3: Play Action Card
+            if (card.type === 'action' || card.type === 'rent') {
+                const actBtn = document.createElement('button');
+                actBtn.className = 'w-full bg-amber-500 text-amber-950 py-2.5 px-4 rounded-xl font-black text-xs hover:bg-amber-400 shadow transition-all flex items-center justify-center gap-1.5';
+                actBtn.innerHTML = `<span>⚡ Play Action / Rent</span>`;
+                actBtn.onclick = () => executeCardAction('action', index);
+                options.appendChild(actBtn);
+            }
         }
     }
 
     modal.classList.remove('hidden');
 }
+
+function inspectCard(card) {
+    if (!card) return;
+    openCardPlayModal(card, null);
+}
+window.inspectCard = inspectCard;
 
 function closeCardPlayModal() {
     const modal = document.getElementById('card-play-modal');
@@ -1956,16 +2044,162 @@ function renderCardMiniHTML(card, isBig = false) {
         icon = '🏷️';
     }
 
-    const sizeClass = isBig ? 'w-32 h-44 p-2 text-xs' : 'w-20 sm:w-24 h-28 sm:h-34 p-1.5 text-[9px] sm:text-[10px]';
+    if (isBig) {
+        // --- BIG PREVIEW CARD (Authentic Monopoly Deal Trading Card with Full Rent Table) ---
+        let centerHTML = '';
+
+        if (isProp) {
+            const colorKey = card.color;
+            const conf = PROPERTY_SETS_CONFIG[colorKey] || {};
+            const rents = conf.rents || [1];
+            const rentTableRows = rents.map((r, i) => {
+                const isFull = i === rents.length - 1;
+                const countText = (i + 1) === 1 ? '1 Property' : (isFull ? `Full Set (${i + 1})` : `${i + 1} Properties`);
+                return `
+                    <div class="flex items-center justify-between px-2 py-0.5 rounded text-[10px] sm:text-[11px] ${isFull ? 'bg-amber-100 font-black text-amber-950' : 'text-slate-700 font-bold'}">
+                        <span>${countText}</span>
+                        <span class="font-black text-emerald-800">$${r}M</span>
+                    </div>
+                `;
+            }).join('');
+
+            centerHTML = `
+                <div class="text-center my-auto py-1">
+                    <div class="font-black text-customAccent text-sm sm:text-base leading-snug mb-0.5">${card.name}</div>
+                    <div class="text-[10px] font-bold text-customAccent/70 mb-2">${conf.emoji || '🏡'} ${conf.name || ''} (${conf.size || rents.length} to complete)</div>
+                    <div class="bg-amber-50/90 border border-customAccent/20 rounded-xl p-2 text-left shadow-2xs">
+                        <div class="text-[9px] font-black uppercase tracking-wider text-customAccent/80 text-center pb-1 border-b border-customAccent/15 mb-1 flex items-center justify-center gap-1">
+                            <span>🏷️</span> <span>RENT VALUE</span>
+                        </div>
+                        <div class="space-y-0.5">
+                            ${rentTableRows}
+                        </div>
+                        <div class="text-[8px] text-slate-400 text-center mt-1 pt-0.5 border-t border-slate-200/60 font-semibold">
+                            House adds +$3M • Hotel adds +$4M
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (isWild) {
+            const colorKey = card.currentColor || card.color || (card.colors ? card.colors[0] : 'brown');
+            const conf = PROPERTY_SETS_CONFIG[colorKey] || {};
+            centerHTML = `
+                <div class="text-center my-auto py-1">
+                    <div class="font-black text-customAccent text-sm sm:text-base leading-snug mb-0.5">${card.name}</div>
+                    <div class="text-[10px] font-bold text-customAccent/70 mb-2">${card.desc || ''}</div>
+                    <div class="bg-amber-50/90 border border-customAccent/20 rounded-xl p-2 text-left space-y-1 shadow-2xs">
+                        <div class="text-[9px] font-black uppercase tracking-wider text-customAccent/80 text-center pb-1 border-b border-customAccent/15 mb-1">
+                            🏷️ SET RENTS
+                        </div>
+                        ${card.isSuperWild ? `
+                            <div class="text-[10px] font-bold text-center text-slate-700 py-1">
+                                🌈 Counts as ANY date property! Adopts current set's rent table.
+                            </div>
+                        ` : (card.colors || []).map(cKey => {
+                            const cConf = PROPERTY_SETS_CONFIG[cKey];
+                            if (!cConf) return '';
+                            const isCurrent = card.currentColor === cKey;
+                            return `
+                                <div class="p-1 rounded text-[10px] ${isCurrent ? 'bg-amber-200/90 font-black border border-amber-300' : 'bg-slate-50 font-bold text-slate-700'}">
+                                    <div class="flex justify-between items-center text-[10px]">
+                                        <span>${cConf.emoji} ${cConf.name} ${isCurrent ? '⭐' : ''}</span>
+                                        <span class="text-emerald-800 font-extrabold">${cConf.rents.map(r => `$${r}M`).join(' / ')}</span>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        } else if (isRent) {
+            centerHTML = `
+                <div class="text-center my-auto py-1">
+                    <div class="font-black text-customAccent text-sm sm:text-base leading-snug mb-0.5">${card.name}</div>
+                    <div class="text-[10px] font-bold text-customAccent/70 mb-2">${card.desc || ''}</div>
+                    <div class="bg-amber-50/90 border border-customAccent/20 rounded-xl p-2 text-left space-y-1 shadow-2xs">
+                        <div class="text-[9px] font-black uppercase tracking-wider text-customAccent/80 text-center pb-1 border-b border-customAccent/15 mb-1">
+                            🏷️ APPLICABLE RENTS
+                        </div>
+                        ${card.isWildRent ? `
+                            <div class="text-[10px] font-bold text-center text-slate-700 py-1">
+                                ✨ Charges rent on ANY property set you own!
+                            </div>
+                        ` : (card.colors || []).map(cKey => {
+                            const cConf = PROPERTY_SETS_CONFIG[cKey];
+                            if (!cConf) return '';
+                            return `
+                                <div class="flex justify-between items-center p-1 rounded bg-slate-50 font-bold text-slate-700 text-[10px]">
+                                    <span>${cConf.emoji} ${cConf.name}</span>
+                                    <span class="text-emerald-800 font-extrabold">${cConf.rents.map(r => `$${r}M`).join(' / ')}</span>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        } else if (isMoney) {
+            centerHTML = `
+                <div class="text-center my-auto py-2">
+                    <div class="text-4xl my-2">💰</div>
+                    <div class="font-black text-emerald-800 text-3xl mb-1">$${card.value}M</div>
+                    <div class="text-xs font-bold text-slate-600">Monopoly Currency</div>
+                    <div class="text-[10px] opacity-75 mt-1">Deposit in bank to pay rent or debts safely!</div>
+                </div>
+            `;
+        } else {
+            centerHTML = `
+                <div class="text-center my-auto py-1">
+                    <div class="text-3xl my-1">${card.name.includes('💔') ? '💔' : (card.name.includes('🛑') ? '🛑' : '⚡')}</div>
+                    <div class="font-black text-customAccent text-sm sm:text-base leading-snug mb-1">${card.name}</div>
+                    <div class="text-[11px] font-bold text-customAccent/85 leading-snug bg-amber-50 rounded-xl p-2 border border-customAccent/20">${card.desc || ''}</div>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="deal-card w-52 sm:w-56 min-h-[17.5rem] bg-white border-3 border-customAccent rounded-2xl shadow-xl flex flex-col justify-between overflow-hidden relative cursor-pointer p-3">
+                <div class="rounded-xl px-2 py-1 text-center font-black text-white text-[11px] sm:text-xs uppercase tracking-wider shadow-xs mb-1" style="background-color: ${headerBg}">
+                    ${icon} ${headerText}
+                </div>
+                ${centerHTML}
+                <div class="flex items-center justify-between text-[11px] font-black border-t border-slate-200 pt-1.5 mt-1">
+                    <span class="text-emerald-700 font-black text-sm">$${card.value}M</span>
+                    <span class="opacity-60 text-[9px] tracking-wider uppercase">${card.type.toUpperCase()}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    // --- STANDARD MINI CARD (In hand & table) ---
+    const colorKey = card.currentColor || card.color || (card.colors ? card.colors[0] : 'brown');
+    const conf = PROPERTY_SETS_CONFIG[colorKey] || {};
+    const sizeClass = 'w-20 sm:w-24 h-28 sm:h-34 p-1.5 text-[9px] sm:text-[10px]';
 
     return `
         <div class="deal-card ${sizeClass} bg-white border-2 border-customAccent rounded-xl shadow-md flex flex-col justify-between overflow-hidden relative cursor-pointer">
             <div class="rounded px-1 py-0.5 text-center font-black text-white text-[8px] sm:text-[9px] uppercase tracking-wider truncate" style="background-color: ${headerBg}">
                 ${icon} ${headerText}
             </div>
-            <div class="text-center my-auto py-1">
+            <div class="text-center my-auto py-0.5">
                 <div class="font-extrabold text-customAccent line-clamp-2 leading-tight">${card.name}</div>
-                ${card.desc ? `<div class="text-[7px] sm:text-[8px] opacity-75 mt-0.5 line-clamp-2">${card.desc}</div>` : ''}
+                ${isProp && conf.rents ? `
+                    <div class="text-[7.5px] sm:text-[8px] font-black text-emerald-900 bg-emerald-50 rounded px-1 py-0.2 mt-0.5 border border-emerald-200/80 truncate" title="Rent: ${conf.rents.map(r => '$' + r + 'M').join(' · ')}">
+                        Rent: ${conf.rents.map(r => `$${r}M`).join('·')}
+                    </div>
+                ` : ''}
+                ${isWild ? `
+                    <div class="text-[7px] sm:text-[7.5px] font-black text-amber-900 bg-amber-50 rounded px-1 py-0.2 mt-0.5 border border-amber-200/80 truncate">
+                        ${card.isSuperWild ? 'Rainbow Wild' : 'Dual Wildcard'}
+                    </div>
+                ` : ''}
+                ${isRent ? `
+                    <div class="text-[7.5px] sm:text-[8px] font-black text-amber-900 bg-amber-50 rounded px-1 py-0.2 mt-0.5 border border-amber-200/80 truncate">
+                        ${card.isWildRent ? 'Wild Rent' : 'Dual Rent'}
+                    </div>
+                ` : ''}
+                ${!isProp && !isWild && !isRent && card.desc ? `
+                    <div class="text-[7px] sm:text-[8px] opacity-75 mt-0.5 line-clamp-2">${card.desc}</div>
+                ` : ''}
             </div>
             <div class="flex items-center justify-between text-[8px] sm:text-[9px] font-black border-t border-slate-200 pt-0.5">
                 <span class="text-emerald-700">$${card.value}M</span>
@@ -2124,22 +2358,33 @@ function renderOpponentBoard() {
                 const conf = PROPERTY_SETS_CONFIG[colorKey];
                 const cards = oppProps[colorKey];
                 const isFull = cards.length >= conf.size;
+                const currentRent = conf.rents[Math.min(cards.length - 1, conf.rents.length - 1)] || 0;
 
                 const groupEl = document.createElement('div');
-                groupEl.className = `p-1.5 rounded-xl border-2 transition-all ${
+                groupEl.className = `p-1.5 sm:p-2 rounded-xl border-2 transition-all ${
                     isFull ? 'bg-amber-100 border-amber-500 complete-set-glow' : 'bg-white border-slate-300'
                 }`;
                 groupEl.innerHTML = `
-                    <div class="flex items-center justify-between text-[10px] font-black px-1 py-0.5 rounded text-white mb-1" style="background-color: ${conf.color}">
-                        <span>${conf.emoji} ${conf.name}</span>
-                        <span>${cards.length}/${conf.size}</span>
+                    <div class="flex items-center justify-between text-[10px] font-black px-1.5 py-0.5 rounded text-white mb-1" style="background-color: ${conf.color}">
+                        <span class="truncate">${conf.emoji} ${conf.name}</span>
+                        <span class="ml-1 whitespace-nowrap">${cards.length}/${conf.size}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-[9px] font-black px-1.5 py-0.5 bg-amber-50 rounded border border-amber-200/80 mb-1 text-customAccent">
+                        <span>🏷️ Current Rent:</span>
+                        <span class="font-black text-emerald-800 text-[10px]">$${currentRent}M</span>
                     </div>
                     <div class="space-y-1">
-                        ${cards.map(c => `
-                            <div class="text-[9px] font-extrabold px-1 py-0.5 rounded bg-slate-50 border border-slate-200 truncate">
+                        ${cards.map((c, idx) => `
+                            <div onclick="inspectCard(getOpponentProperties()['${colorKey}'][${idx}])" class="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-slate-50 border border-slate-200 truncate cursor-pointer hover:bg-amber-50" title="Tap to inspect">
                                 ${c.name}
                             </div>
                         `).join('')}
+                    </div>
+                    <div class="text-[8px] text-slate-500 font-semibold text-center mt-1 pt-0.5 border-t border-slate-200/70 flex justify-around">
+                        ${conf.rents.map((r, i) => {
+                            const isCurrentTier = (i + 1) === cards.length;
+                            return `<span class="${isCurrentTier ? 'font-black text-emerald-800 bg-emerald-100 px-1 rounded' : 'opacity-70'}">${i + 1}: $${r}M</span>`;
+                        }).join('')}
                     </div>
                     ${isFull ? `<div class="mt-1 text-[8px] font-black text-amber-900 text-center bg-amber-200 rounded px-1 py-0.2">⭐ FULL SET!</div>` : ''}
                 `;
@@ -2189,6 +2434,7 @@ function renderYourBoard() {
                 const conf = PROPERTY_SETS_CONFIG[colorKey];
                 const cards = myProps[colorKey];
                 const isFull = cards.length >= conf.size;
+                const currentRent = conf.rents[Math.min(cards.length - 1, conf.rents.length - 1)] || 0;
 
                 const groupEl = document.createElement('div');
                 groupEl.className = `p-2 rounded-xl border-2 transition-all ${
@@ -2196,10 +2442,10 @@ function renderYourBoard() {
                 }`;
 
                 const cardsHTML = cards.map((c, idx) => `
-                    <div class="flex items-center justify-between text-[10px] font-extrabold px-1.5 py-1 rounded bg-slate-50 border border-slate-200">
+                    <div onclick="inspectCard(getCurrentPlayerProperties()['${colorKey}'][${idx}])" class="flex items-center justify-between text-[10px] font-extrabold px-1.5 py-1 rounded bg-slate-50 border border-slate-200 cursor-pointer hover:bg-amber-50 transition-all" title="Tap to inspect">
                         <span class="truncate pr-1">${c.name}</span>
                         ${c.type === 'wildcard' ? `
-                            <button onclick="flipWildcardColor('${colorKey}', ${idx})" class="text-[8px] bg-amber-200 text-amber-950 px-1 py-0.2 rounded font-black hover:bg-amber-300 ml-1" title="Flip Wildcard color">
+                            <button onclick="event.stopPropagation(); flipWildcardColor('${colorKey}', ${idx})" class="text-[8px] bg-amber-200 text-amber-950 px-1 py-0.2 rounded font-black hover:bg-amber-300 ml-1" title="Flip Wildcard color">
                                 🔄 Flip
                             </button>
                         ` : ''}
@@ -2207,12 +2453,22 @@ function renderYourBoard() {
                 `).join('');
 
                 groupEl.innerHTML = `
-                    <div class="flex items-center justify-between text-xs font-black px-1.5 py-0.5 rounded text-white mb-1.5" style="background-color: ${conf.color}">
-                        <span>${conf.emoji} ${conf.name}</span>
-                        <span>${cards.length}/${conf.size}</span>
+                    <div class="flex items-center justify-between text-xs font-black px-1.5 py-0.5 rounded text-white mb-1" style="background-color: ${conf.color}">
+                        <span class="truncate">${conf.emoji} ${conf.name}</span>
+                        <span class="ml-1 whitespace-nowrap">${cards.length}/${conf.size}</span>
+                    </div>
+                    <div class="flex items-center justify-between text-[9px] font-black px-1.5 py-0.5 bg-amber-50 rounded border border-amber-200/80 mb-1.5 text-customAccent">
+                        <span>🏷️ Current Rent:</span>
+                        <span class="font-black text-emerald-800 text-[10px]">$${currentRent}M</span>
                     </div>
                     <div class="space-y-1">
                         ${cardsHTML}
+                    </div>
+                    <div class="text-[8px] text-slate-500 font-semibold text-center mt-1.5 pt-1 border-t border-slate-200 flex justify-around">
+                        ${conf.rents.map((r, i) => {
+                            const isCurrentTier = (i + 1) === cards.length;
+                            return `<span class="${isCurrentTier ? 'font-black text-emerald-800 bg-emerald-100 px-1 rounded' : 'opacity-70'}">${i + 1}: $${r}M</span>`;
+                        }).join('')}
                     </div>
                     ${isFull ? `<div class="mt-1.5 text-[9px] font-black text-amber-950 text-center bg-amber-300 rounded px-1 py-0.5 shadow-xs">🏆 COMPLETE SET!</div>` : ''}
                 `;
