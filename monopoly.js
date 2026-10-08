@@ -946,6 +946,10 @@ function onCardHandClick(index) {
         showActionPrompt("⏳ Wait for opponent's turn!");
         return;
     }
+    if (localGameState.pending_action) {
+        showActionPrompt("⏳ Please resolve the pending action card first!");
+        return;
+    }
     if (localGameState.plays_remaining <= 0) {
         showActionPrompt("⚠️ No plays remaining! Tap 'End Turn'.");
         return;
@@ -1079,11 +1083,18 @@ function openCardPlayModal(card, index) {
 
             // Option 3: Play Action Card
             if (card.type === 'action' || card.type === 'rent') {
-                const actBtn = document.createElement('button');
-                actBtn.className = 'w-full bg-amber-500 text-amber-950 py-2.5 px-4 rounded-xl font-black text-xs hover:bg-amber-400 shadow transition-all flex items-center justify-center gap-1.5';
-                actBtn.innerHTML = `<span>⚡ Play Action / Rent</span>`;
-                actBtn.onclick = () => executeCardAction('action', index);
-                options.appendChild(actBtn);
+                if (card.actionKey === 'just_say_no') {
+                    const noticeEl = document.createElement('div');
+                    noticeEl.className = 'w-full bg-red-100 text-red-950 p-2.5 rounded-xl font-bold text-xs border border-red-300 text-center';
+                    noticeEl.innerHTML = `<span>🛑 Keep in hand to counter opponent attacks! Or deposit as $4M in bank.</span>`;
+                    options.appendChild(noticeEl);
+                } else {
+                    const actBtn = document.createElement('button');
+                    actBtn.className = 'w-full bg-amber-500 text-amber-950 py-2.5 px-4 rounded-xl font-black text-xs hover:bg-amber-400 shadow transition-all flex items-center justify-center gap-1.5 cursor-pointer';
+                    actBtn.innerHTML = `<span>⚡ Play Action / Rent</span>`;
+                    actBtn.onclick = () => executeCardAction('action', index);
+                    options.appendChild(actBtn);
+                }
             }
         }
     }
@@ -1168,13 +1179,29 @@ async function executeCardAction(actionType, cardIndex) {
 async function handleActionCardPlay(card, cardIndex) {
     const hand = getCurrentPlayerHand();
 
+    // Helper to safely remove card from hand by uid
+    function removeCardFromHand() {
+        const actualIdx = hand.findIndex(c => c.uid === card.uid);
+        if (actualIdx !== -1) hand.splice(actualIdx, 1);
+        else hand.splice(cardIndex, 1);
+    }
+
     // 1. Pass Go
     if (card.actionKey === 'pass_go') {
-        hand.splice(cardIndex, 1);
+        removeCardFromHand();
         localGameState.discard_pile.unshift(card);
         localGameState.plays_remaining--;
-        // Draw 2 extra cards
+
+        // Draw 2 extra cards (with discard reshuffle if deck is low)
         for (let i = 0; i < 2; i++) {
+            if (localGameState.deck.length === 0 && localGameState.discard_pile.length > 0) {
+                localGameState.deck = [...localGameState.discard_pile];
+                localGameState.discard_pile = [];
+                for (let k = localGameState.deck.length - 1; k > 0; k--) {
+                    const j = Math.floor(Math.random() * (k + 1));
+                    [localGameState.deck[k], localGameState.deck[j]] = [localGameState.deck[j], localGameState.deck[k]];
+                }
+            }
             if (localGameState.deck.length > 0) {
                 hand.push(localGameState.deck.pop());
             }
@@ -1189,7 +1216,7 @@ async function handleActionCardPlay(card, cardIndex) {
 
     // 2. Double The Rent
     if (card.actionKey === 'double_rent') {
-        hand.splice(cardIndex, 1);
+        removeCardFromHand();
         localGameState.discard_pile.unshift(card);
         localGameState.plays_remaining--;
         doubleRentActiveOnTurn = true;
@@ -1225,10 +1252,10 @@ async function handleActionCardPlay(card, cardIndex) {
             eligibleColors.map(cKey => ({
                 id: cKey,
                 title: `${PROPERTY_SETS_CONFIG[cKey].emoji} ${PROPERTY_SETS_CONFIG[cKey].name}`,
-                desc: `Current set size: ${props[cKey].length}`
+                desc: `Current set size: ${props[cKey].length} cards`
             })),
             async (chosenColor) => {
-                hand.splice(cardIndex, 1);
+                removeCardFromHand();
                 props[chosenColor].push(card);
                 localGameState.plays_remaining--;
                 playCashDing();
@@ -1286,7 +1313,7 @@ async function handleActionCardPlay(card, cardIndex) {
                     doubleRentActiveOnTurn = false;
                 }
 
-                hand.splice(cardIndex, 1);
+                removeCardFromHand();
                 localGameState.discard_pile.unshift(card);
                 localGameState.plays_remaining--;
 
@@ -1302,7 +1329,7 @@ async function handleActionCardPlay(card, cardIndex) {
 
     // 5. Debt Collector ($5M)
     if (card.actionKey === 'debt_collector') {
-        hand.splice(cardIndex, 1);
+        removeCardFromHand();
         localGameState.discard_pile.unshift(card);
         localGameState.plays_remaining--;
         playStealSound();
@@ -1314,7 +1341,7 @@ async function handleActionCardPlay(card, cardIndex) {
 
     // 6. Birthday ($2M)
     if (card.actionKey === 'birthday') {
-        hand.splice(cardIndex, 1);
+        removeCardFromHand();
         localGameState.discard_pile.unshift(card);
         localGameState.plays_remaining--;
         playCashDing();
@@ -1343,7 +1370,7 @@ async function handleActionCardPlay(card, cardIndex) {
                 desc: 'Steal the entire completed set!'
             })),
             async (chosenColor) => {
-                hand.splice(cardIndex, 1);
+                removeCardFromHand();
                 localGameState.discard_pile.unshift(card);
                 localGameState.plays_remaining--;
 
@@ -1383,11 +1410,11 @@ async function handleActionCardPlay(card, cardIndex) {
             "Select 1 property to steal:",
             stealable,
             async (chosenId) => {
-                hand.splice(cardIndex, 1);
+                const item = stealable.find(s => s.id === chosenId);
+                removeCardFromHand();
                 localGameState.discard_pile.unshift(card);
                 localGameState.plays_remaining--;
 
-                const item = stealable.find(s => s.id === chosenId);
                 await triggerStealOrJustSayNo('sly_deal', item);
             }
         );
@@ -1440,7 +1467,7 @@ async function handleActionCardPlay(card, cardIndex) {
                     async (chosenOppId) => {
                         const oppItem = oppSwapList.find(s => s.id === chosenOppId);
 
-                        hand.splice(cardIndex, 1);
+                        removeCardFromHand();
                         localGameState.discard_pile.unshift(card);
                         localGameState.plays_remaining--;
 
@@ -1451,17 +1478,27 @@ async function handleActionCardPlay(card, cardIndex) {
         );
         return;
     }
+
+    // 10. Just Say No
+    if (card.actionKey === 'just_say_no') {
+        showActionPrompt("🛑 'Just Say No' is kept in hand to block opponent attacks, or deposited in your bank as $4M cash!");
+        return;
+    }
 }
 
 // 13. Just Say No & Payment Flow
 async function triggerPaymentOrJustSayNo(amount, reason) {
-    const oppHand = getOpponentPlayerHand();
+    const toRole = localGameState.current_turn;
+    const fromRole = toRole === 'player1' ? 'player2' : 'player1';
+    const oppHand = fromRole === 'player1' ? localGameState.player1_hand : localGameState.player2_hand;
+    const oppBank = fromRole === 'player1' ? localGameState.player1_bank : localGameState.player2_bank;
+    const oppProps = fromRole === 'player1' ? localGameState.player1_properties : localGameState.player2_properties;
+
     const hasJSN = oppHand.some(c => c.actionKey === 'just_say_no');
 
-    if (gameMode === 'ai' && localGameState.current_turn === 'player1') {
-        // Opponent is AI
+    // Case 1: Playing vs AI
+    if (gameMode === 'ai' && toRole === 'player1') {
         if (hasJSN && Math.random() < 0.75) {
-            // AI plays Just Say No!
             const jsnIdx = oppHand.findIndex(c => c.actionKey === 'just_say_no');
             const jsnCard = oppHand.splice(jsnIdx, 1)[0];
             localGameState.discard_pile.unshift(jsnCard);
@@ -1472,19 +1509,33 @@ async function triggerPaymentOrJustSayNo(amount, reason) {
             renderActiveGame();
             return;
         } else {
-            // AI settles payment automatically
             settleAIPayment(amount);
             return;
         }
     }
 
-    // In online or pass and play mode
+    // Calculate total assets defender has on board
+    let totalAssets = oppBank.reduce((a, c) => a + c.value, 0);
+    Object.keys(oppProps).forEach(cKey => {
+        totalAssets += (oppProps[cKey] || []).reduce((a, c) => a + c.value, 0);
+    });
+
+    // If opponent has no JSN and $0 total assets on board, waive immediately
+    if (!hasJSN && totalAssets === 0) {
+        const defName = fromRole === 'player1' ? 'Sanyam' : 'Himi';
+        showActionPrompt(`💸 ${defName} has no money or properties on table to pay! Debt waived.`);
+        await persistAndBroadcastGameState(localGameState);
+        renderActiveGame();
+        return;
+    }
+
+    // Set pending action
     localGameState.pending_action = {
         type: 'payment',
         amount: amount,
         reason: reason,
-        fromPlayer: localGameState.current_turn === 'player1' ? 'player2' : 'player1',
-        toPlayer: localGameState.current_turn
+        fromPlayer: fromRole,
+        toPlayer: toRole
     };
 
     await persistAndBroadcastGameState(localGameState);
@@ -1492,10 +1543,13 @@ async function triggerPaymentOrJustSayNo(amount, reason) {
 }
 
 async function triggerStealOrJustSayNo(stealType, targetData) {
-    const oppHand = getOpponentPlayerHand();
+    const toRole = localGameState.current_turn;
+    const fromRole = toRole === 'player1' ? 'player2' : 'player1';
+    const oppHand = fromRole === 'player1' ? localGameState.player1_hand : localGameState.player2_hand;
     const hasJSN = oppHand.some(c => c.actionKey === 'just_say_no');
 
-    if (gameMode === 'ai' && localGameState.current_turn === 'player1') {
+    // Case 1: Playing vs AI
+    if (gameMode === 'ai' && toRole === 'player1') {
         if (hasJSN && Math.random() < 0.8) {
             const jsnIdx = oppHand.findIndex(c => c.actionKey === 'just_say_no');
             const jsnCard = oppHand.splice(jsnIdx, 1)[0];
@@ -1512,12 +1566,20 @@ async function triggerStealOrJustSayNo(stealType, targetData) {
         }
     }
 
+    // Case 2: Human Opponent (Pass & Play or Online)
+    // If opponent has NO Just Say No, execute steal immediately!
+    if (!hasJSN) {
+        executeStealTransfer(stealType, targetData, toRole, fromRole);
+        return;
+    }
+
+    // Opponent HAS Just Say No in hand -> prompt them to block or accept
     localGameState.pending_action = {
         type: 'steal',
         stealType: stealType,
         targetData: targetData,
-        fromPlayer: localGameState.current_turn === 'player1' ? 'player2' : 'player1',
-        toPlayer: localGameState.current_turn
+        fromPlayer: fromRole,
+        toPlayer: toRole
     };
 
     await persistAndBroadcastGameState(localGameState);
@@ -1536,34 +1598,61 @@ function executeStealTransfer(stealType, targetData, toRole, fromRole) {
         toProps[color].push(...stolenSet);
 
         playStealSound();
-        showActionPrompt(`👑 Deal Breaker! Stole the ${PROPERTY_SETS_CONFIG[color].name} set!`);
+        const conf = PROPERTY_SETS_CONFIG[color];
+        showActionPrompt(`👑 Deal Breaker! Stole the ${conf ? conf.name : color} set!`);
     } else if (stealType === 'sly_deal') {
-        const { color, cardIndex } = targetData;
-        if (fromProps[color] && fromProps[color][cardIndex]) {
-            const stolenCard = fromProps[color].splice(cardIndex, 1)[0];
+        const { color, cardIndex, cardUid } = targetData;
+        let stolenCard = null;
+        if (cardUid && fromProps[color]) {
+            const idx = fromProps[color].findIndex(c => c.uid === cardUid);
+            if (idx !== -1) stolenCard = fromProps[color].splice(idx, 1)[0];
+        }
+        if (!stolenCard && fromProps[color] && fromProps[color][cardIndex]) {
+            stolenCard = fromProps[color].splice(cardIndex, 1)[0];
+        }
+        if (stolenCard) {
             if (fromProps[color].length === 0) delete fromProps[color];
-            if (!toProps[color]) toProps[color] = [];
-            toProps[color].push(stolenCard);
+            const dest = stolenCard.currentColor || stolenCard.color || color;
+            if (!toProps[dest]) toProps[dest] = [];
+            toProps[dest].push(stolenCard);
             playStealSound();
             showActionPrompt(`🕵️‍♂️ Sly Deal! Stole ${stolenCard.name}!`);
         }
     } else if (stealType === 'forced_deal') {
         const { myItem, oppItem } = targetData;
-        // Swap
-        const giveCard = toProps[myItem.color].splice(myItem.cardIndex, 1)[0];
-        const takeCard = fromProps[oppItem.color].splice(oppItem.cardIndex, 1)[0];
+        let giveCard = null;
+        if (myItem.cardUid && toProps[myItem.color]) {
+            const idx = toProps[myItem.color].findIndex(c => c.uid === myItem.cardUid);
+            if (idx !== -1) giveCard = toProps[myItem.color].splice(idx, 1)[0];
+        }
+        if (!giveCard && toProps[myItem.color] && toProps[myItem.color][myItem.cardIndex]) {
+            giveCard = toProps[myItem.color].splice(myItem.cardIndex, 1)[0];
+        }
 
-        if (toProps[myItem.color].length === 0) delete toProps[myItem.color];
-        if (fromProps[oppItem.color].length === 0) delete fromProps[oppItem.color];
+        let takeCard = null;
+        if (oppItem.cardUid && fromProps[oppItem.color]) {
+            const idx = fromProps[oppItem.color].findIndex(c => c.uid === oppItem.cardUid);
+            if (idx !== -1) takeCard = fromProps[oppItem.color].splice(idx, 1)[0];
+        }
+        if (!takeCard && fromProps[oppItem.color] && fromProps[oppItem.color][oppItem.cardIndex]) {
+            takeCard = fromProps[oppItem.color].splice(oppItem.cardIndex, 1)[0];
+        }
 
-        if (!toProps[oppItem.color]) toProps[oppItem.color] = [];
-        toProps[oppItem.color].push(takeCard);
+        if (giveCard && takeCard) {
+            if (toProps[myItem.color] && toProps[myItem.color].length === 0) delete toProps[myItem.color];
+            if (fromProps[oppItem.color] && fromProps[oppItem.color].length === 0) delete fromProps[oppItem.color];
 
-        if (!fromProps[myItem.color]) fromProps[myItem.color] = [];
-        fromProps[myItem.color].push(giveCard);
+            const takeDest = takeCard.currentColor || takeCard.color || oppItem.color;
+            if (!toProps[takeDest]) toProps[takeDest] = [];
+            toProps[takeDest].push(takeCard);
 
-        playCardSound();
-        showActionPrompt(`🔄 Forced Deal! Swapped ${giveCard.name} for ${takeCard.name}!`);
+            const giveDest = giveCard.currentColor || giveCard.color || myItem.color;
+            if (!fromProps[giveDest]) fromProps[giveDest] = [];
+            fromProps[giveDest].push(giveCard);
+
+            playCardSound();
+            showActionPrompt(`🔄 Forced Deal! Swapped ${giveCard.name} for ${takeCard.name}!`);
+        }
     }
 
     localGameState.pending_action = null;
@@ -1583,15 +1672,18 @@ async function respondWithJustSayNo(useJSN) {
 
     if (!localGameState || !localGameState.pending_action) return;
     const pending = localGameState.pending_action;
-    const myHand = getCurrentPlayerHand();
+    const fromRole = pending.fromPlayer;
+    const toRole = pending.toPlayer;
+    const defHand = fromRole === 'player1' ? localGameState.player1_hand : localGameState.player2_hand;
 
     if (useJSN) {
-        const jsnIdx = myHand.findIndex(c => c.actionKey === 'just_say_no');
+        const jsnIdx = defHand.findIndex(c => c.actionKey === 'just_say_no');
         if (jsnIdx !== -1) {
-            const jsn = myHand.splice(jsnIdx, 1)[0];
+            const jsn = defHand.splice(jsnIdx, 1)[0];
             localGameState.discard_pile.unshift(jsn);
             playJustSayNoSound();
-            showActionPrompt("🛑 JUST SAY NO played! Attack blocked!");
+            const defName = fromRole === 'player1' ? 'Sanyam' : 'Himi';
+            showActionPrompt(`🛑 ${defName} played JUST SAY NO! Attack blocked!`);
             recordLastMove('just_say_no', jsn);
             localGameState.pending_action = null;
             await persistAndBroadcastGameState(localGameState);
@@ -1602,8 +1694,24 @@ async function respondWithJustSayNo(useJSN) {
 
     // Accepted hit
     if (pending.type === 'steal') {
-        executeStealTransfer(pending.stealType, pending.targetData, pending.toPlayer, pending.fromPlayer);
+        executeStealTransfer(pending.stealType, pending.targetData, toRole, fromRole);
     } else if (pending.type === 'payment') {
+        const fromBank = fromRole === 'player1' ? localGameState.player1_bank : localGameState.player2_bank;
+        const fromProps = fromRole === 'player1' ? localGameState.player1_properties : localGameState.player2_properties;
+        let totalAssets = fromBank.reduce((a, c) => a + c.value, 0);
+        Object.keys(fromProps).forEach(cKey => {
+            totalAssets += (fromProps[cKey] || []).reduce((a, c) => a + c.value, 0);
+        });
+
+        if (totalAssets === 0) {
+            localGameState.pending_action = null;
+            const defName = fromRole === 'player1' ? 'Sanyam' : 'Himi';
+            showActionPrompt(`💸 ${defName} has no money or properties on table to pay! Debt waived.`);
+            await persistAndBroadcastGameState(localGameState);
+            renderActiveGame();
+            return;
+        }
+
         openPaymentModal(pending.amount, pending.reason);
     }
 }
@@ -1616,9 +1724,14 @@ function openPaymentModal(amount, reason) {
     const modal = document.getElementById('payment-modal');
     const debtMsg = document.getElementById('payment-debt-message');
     const targetSum = document.getElementById('payment-target-sum');
-    const list = document.getElementById('payment-selectable-cards');
 
-    if (debtMsg) debtMsg.textContent = `You owe $${amount}M for: ${reason}. Select cards to pay:`;
+    const fromRole = (localGameState && localGameState.pending_action) ? localGameState.pending_action.fromPlayer : ((gameMode === 'pass_and_play') ? (localGameState.current_turn === 'player1' ? 'player2' : 'player1') : myRole);
+    const toRole = (localGameState && localGameState.pending_action) ? localGameState.pending_action.toPlayer : (fromRole === 'player1' ? 'player2' : 'player1');
+    const fromName = fromRole === 'player1' ? 'Sanyam' : 'Himi';
+    const toName = toRole === 'player1' ? 'Sanyam' : 'Himi';
+    const prefix = gameMode === 'pass_and_play' ? `${fromName}: ` : '';
+
+    if (debtMsg) debtMsg.textContent = `${prefix}You owe $${amount}M to ${toName} for: ${reason}. Select cards to pay:`;
     if (targetSum) targetSum.textContent = `$${amount}M`;
 
     renderPaymentSelectionList();
@@ -1631,13 +1744,17 @@ function renderPaymentSelectionList() {
     if (!list) return;
 
     list.innerHTML = '';
-    const myBank = getCurrentPlayerBank();
-    const myProps = getCurrentPlayerProperties();
+    const payingRole = (localGameState && localGameState.pending_action)
+        ? localGameState.pending_action.fromPlayer
+        : ((gameMode === 'pass_and_play') ? (localGameState.current_turn === 'player1' ? 'player2' : 'player1') : myRole);
+
+    const payerBank = payingRole === 'player1' ? localGameState.player1_bank : localGameState.player2_bank;
+    const payerProps = payingRole === 'player1' ? localGameState.player1_properties : localGameState.player2_properties;
 
     let totalSelected = 0;
 
     // Bank Cards
-    myBank.forEach(card => {
+    payerBank.forEach(card => {
         const isSelected = selectedPaymentCardIds.has(card.uid);
         if (isSelected) totalSelected += card.value;
 
@@ -1658,8 +1775,8 @@ function renderPaymentSelectionList() {
     });
 
     // Property Cards on Table
-    Object.keys(myProps).forEach(cKey => {
-        myProps[cKey].forEach(card => {
+    Object.keys(payerProps).forEach(cKey => {
+        payerProps[cKey].forEach(card => {
             const isSelected = selectedPaymentCardIds.has(card.uid);
             if (isSelected) totalSelected += card.value;
 
@@ -1683,16 +1800,16 @@ function renderPaymentSelectionList() {
     if (sumEl) sumEl.textContent = `$${totalSelected}M`;
 
     // Calculate total assets on table/bank
-    let totalAssets = myBank.reduce((a, c) => a + c.value, 0);
-    Object.keys(myProps).forEach(cKey => {
-        totalAssets += myProps[cKey].reduce((a, c) => a + c.value, 0);
+    let totalAssets = payerBank.reduce((a, c) => a + c.value, 0);
+    Object.keys(payerProps).forEach(cKey => {
+        totalAssets += payerProps[cKey].reduce((a, c) => a + c.value, 0);
     });
 
     const confirmBtn = document.getElementById('payment-confirm-btn');
     if (confirmBtn) {
-        if (totalSelected >= pendingPaymentTargetAmount || totalSelected === totalAssets) {
+        if (totalSelected >= pendingPaymentTargetAmount || (totalSelected === totalAssets && totalAssets > 0)) {
             confirmBtn.disabled = false;
-            confirmBtn.className = 'w-full bg-emerald-600 text-white py-3 rounded-2xl font-black text-sm shadow hover:bg-emerald-700 transition-all';
+            confirmBtn.className = 'w-full bg-emerald-600 text-white py-3 rounded-2xl font-black text-sm shadow hover:bg-emerald-700 transition-all cursor-pointer';
         } else {
             confirmBtn.disabled = true;
             confirmBtn.className = 'w-full bg-slate-300 text-slate-600 py-3 rounded-2xl font-black text-sm shadow cursor-not-allowed';
@@ -1729,9 +1846,13 @@ async function confirmPaymentSubmit() {
             if (pIdx !== -1) {
                 const paidCard = fromProps[cKey].splice(pIdx, 1)[0];
                 if (fromProps[cKey].length === 0) delete fromProps[cKey];
-                const targetColor = paidCard.currentColor || paidCard.color || cKey;
-                if (!toProps[targetColor]) toProps[targetColor] = [];
-                toProps[targetColor].push(paidCard);
+                if (paidCard.type === 'action') {
+                    toBank.push(paidCard);
+                } else {
+                    const targetColor = paidCard.currentColor || paidCard.color || cKey;
+                    if (!toProps[targetColor]) toProps[targetColor] = [];
+                    toProps[targetColor].push(paidCard);
+                }
             }
         });
     });
@@ -1740,7 +1861,8 @@ async function confirmPaymentSubmit() {
     localGameState.pending_action = null;
 
     playCashDing();
-    showActionPrompt(`💸 Debt paid to ${toRole === 'player1' ? 'Sanyam' : 'Himi'}!`);
+    const recipientName = toRole === 'player1' ? 'Sanyam' : 'Himi';
+    showActionPrompt(`💸 Debt paid to ${recipientName}!`);
     checkVictoryCondition(localGameState);
     await persistAndBroadcastGameState(localGameState);
     renderActiveGame();
@@ -1831,6 +1953,10 @@ async function flipWildcardColor(colorKey, cardIndex) {
 // 15. End Turn & Discard Down to 7
 async function handleEndTurn() {
     if (!isCurrentPlayerTurn()) return;
+    if (localGameState.pending_action) {
+        showActionPrompt("⏳ Please wait for opponent to resolve pending action before ending turn!");
+        return;
+    }
 
     const hand = getCurrentPlayerHand();
     if (hand.length > 7) {
@@ -2000,8 +2126,9 @@ function openTargetSelectionModal(title, subtitle, items, onSelectCallback) {
                 <div class="text-[10px] font-bold opacity-80">${item.desc || ''}</div>
             `;
             btn.onclick = () => {
+                const cb = currentTargetCallback;
                 closeTargetSelectionModal();
-                if (currentTargetCallback) currentTargetCallback(item.id);
+                if (cb) cb(item.id);
             };
             container.appendChild(btn);
         });
@@ -2246,6 +2373,17 @@ function renderActiveGame() {
         if (localGameState.winner) {
             turnBanner.className = 'text-xs sm:text-sm font-black px-4 py-1 rounded-full bg-emerald-500 text-white shadow-sm';
             turnBanner.textContent = localGameState.winner === 'player1' ? 'Sanyam Won! 🏆' : 'Himi Won! 🏆';
+        } else if (localGameState.pending_action) {
+            const pending = localGameState.pending_action;
+            const isTargetMe = (gameMode === 'pass_and_play') || (pending.fromPlayer === myRole);
+            if (isTargetMe) {
+                turnBanner.className = 'text-xs sm:text-sm font-black px-4 py-1 rounded-full bg-red-500 text-white shadow-sm animate-pulse';
+                turnBanner.textContent = pending.type === 'steal' ? '⚠️ Incoming Attack! Respond now' : '💸 Rent Demanded! Pay debt';
+            } else {
+                const oppName = pending.fromPlayer === 'player1' ? 'Sanyam' : 'Himi';
+                turnBanner.className = 'text-xs sm:text-sm font-black px-4 py-1 rounded-full bg-amber-400 text-amber-950 shadow-sm animate-pulse';
+                turnBanner.textContent = `⏳ Waiting for ${oppName} to respond...`;
+            }
         } else if (isCurrentPlayerTurn()) {
             turnBanner.className = 'text-xs sm:text-sm font-black px-4 py-1 rounded-full bg-emerald-200 text-emerald-950 border border-emerald-400 shadow-sm animate-pulse';
             turnBanner.textContent = '🎯 Your Turn! Play up to 3 cards';
@@ -2513,25 +2651,46 @@ function checkIncomingActionPrompt() {
     if (!localGameState || !localGameState.pending_action) return;
     const pending = localGameState.pending_action;
 
-    // Check if this action is targeting me
-    if (pending.fromPlayer === myRole) {
-        const modal = document.getElementById('just-say-no-modal');
-        const attackMsg = document.getElementById('jsn-attack-message');
-        const myHand = getCurrentPlayerHand();
-        const hasJSN = myHand.some(c => c.actionKey === 'just_say_no');
+    // Check if this action is targeting me or we are in pass and play
+    const isTargetingMe = (gameMode === 'pass_and_play') || (pending.fromPlayer === myRole);
+    if (!isTargetingMe) return;
 
-        if (hasJSN) {
-            if (attackMsg) {
-                if (pending.type === 'steal') {
-                    attackMsg.textContent = `Opponent played ${pending.stealType.toUpperCase().replace('_', ' ')} against your properties!`;
-                } else if (pending.type === 'payment') {
-                    attackMsg.textContent = `Opponent demands $${pending.amount}M for: ${pending.reason}!`;
-                }
+    const modal = document.getElementById('just-say-no-modal');
+    const attackMsg = document.getElementById('jsn-attack-message');
+    const defHand = pending.fromPlayer === 'player1' ? localGameState.player1_hand : localGameState.player2_hand;
+    const hasJSN = defHand.some(c => c.actionKey === 'just_say_no');
+
+    if (hasJSN) {
+        if (attackMsg) {
+            const defName = pending.fromPlayer === 'player1' ? 'Sanyam' : 'Himi';
+            const attName = pending.toPlayer === 'player1' ? 'Sanyam' : 'Himi';
+            const prefix = gameMode === 'pass_and_play' ? `${defName}: ` : '';
+            if (pending.type === 'steal') {
+                const sName = pending.stealType === 'deal_breaker' ? 'DEAL BREAKER 💔' : (pending.stealType === 'sly_deal' ? 'SLY DEAL 🕵️‍♂️' : 'FORCED DEAL 🔄');
+                attackMsg.textContent = `${prefix}${attName} played ${sName} against your properties!`;
+            } else if (pending.type === 'payment') {
+                attackMsg.textContent = `${prefix}${attName} demands $${pending.amount}M for: ${pending.reason}!`;
             }
-            if (modal) modal.classList.remove('hidden');
-        } else {
-            // No Just Say No in hand: auto-open payment modal if payment
-            if (pending.type === 'payment') {
+        }
+        if (modal) modal.classList.remove('hidden');
+    } else {
+        // No Just Say No in hand
+        if (pending.type === 'steal') {
+            executeStealTransfer(pending.stealType, pending.targetData, pending.toPlayer, pending.fromPlayer);
+        } else if (pending.type === 'payment') {
+            const defBank = pending.fromPlayer === 'player1' ? localGameState.player1_bank : localGameState.player2_bank;
+            const defProps = pending.fromPlayer === 'player1' ? localGameState.player1_properties : localGameState.player2_properties;
+            let totalAssets = defBank.reduce((a, c) => a + c.value, 0);
+            Object.keys(defProps).forEach(cKey => {
+                totalAssets += (defProps[cKey] || []).reduce((a, c) => a + c.value, 0);
+            });
+            if (totalAssets === 0) {
+                localGameState.pending_action = null;
+                const defName = pending.fromPlayer === 'player1' ? 'Sanyam' : 'Himi';
+                showActionPrompt(`💸 ${defName} has no money or properties on table to pay! Debt waived.`);
+                persistAndBroadcastGameState(localGameState);
+                renderActiveGame();
+            } else {
                 openPaymentModal(pending.amount, pending.reason);
             }
         }
