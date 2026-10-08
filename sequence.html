@@ -60,23 +60,25 @@
             animation: pulseValid 1.2s infinite alternate ease-in-out;
             box-shadow: 0 0 10px 2px rgba(245, 158, 11, 0.85);
             z-index: 10;
+            will-change: transform, box-shadow;
         }
 
         .cell-removable-move {
             animation: shakeRemove 0.8s infinite ease-in-out;
             box-shadow: 0 0 10px 2px rgba(239, 68, 68, 0.9);
             z-index: 10;
+            will-change: transform;
         }
 
         @keyframes pulseValid {
-            0% { transform: scale(0.97); filter: brightness(1.05); }
-            100% { transform: scale(1.06); filter: brightness(1.25); }
+            0% { transform: scale3d(0.97, 0.97, 1); box-shadow: 0 0 8px 1px rgba(245, 158, 11, 0.7); }
+            100% { transform: scale3d(1.04, 1.04, 1); box-shadow: 0 0 14px 4px rgba(245, 158, 11, 0.95); }
         }
 
         @keyframes shakeRemove {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-2px) rotate(-1deg); }
-            75% { transform: translateX(2px) rotate(1deg); }
+            0%, 100% { transform: translate3d(0, 0, 0); }
+            25% { transform: translate3d(-2px, 0, 0) rotate(-1deg); }
+            75% { transform: translate3d(2px, 0, 0) rotate(1deg); }
         }
 
         /* 3D Glossy Chips */
@@ -139,7 +141,7 @@
 <body class="bg-customBg text-customAccent font-quicksand min-h-screen flex flex-col justify-between overflow-x-hidden relative">
 
     <!-- Floating Background Books -->
-    <div id="books-container" class="absolute inset-0 pointer-events-none z-0"></div>
+    <div id="books-container" class="fixed inset-0 pointer-events-none z-0 overflow-hidden"></div>
 
     <!-- Main Container -->
     <main class="flex-grow flex flex-col items-center justify-start p-2 sm:p-4 md:p-6 z-10 max-w-4xl mx-auto w-full">

@@ -107,7 +107,7 @@ function toggleSound() {
 // Background Floating Books Effect
 const booksContainer = document.getElementById('books-container');
 function createFloatingBook() {
-    if (!booksContainer) return;
+    if (!booksContainer || booksContainer.children.length >= 10) return;
     const book = document.createElement('div');
     book.classList.add('floating-book');
     book.innerHTML = `
@@ -115,22 +115,22 @@ function createFloatingBook() {
             <path d="M12 6c-3.18-2.07-7.46-2.58-10-2.58v13.5c2.54 0 6.82.51 10 2.58 3.18-2.07 7.46-2.58 10-2.58V3.42c-2.54 0-6.82.51-10 2.58zm9 11c-2.27 0-6.15.54-8 1.39V7.07c1.85-.85 5.73-1.39 8-1.39v11.32zM3 17V5.68c2.27 0 6.15.54 8 1.39v10.93c-1.85-.85-5.73-1.39-8-1.39z"/>
         </svg>
     `;
-    const left = Math.random() * 100;
-    const size = Math.random() * 22 + 12;
-    const drift = (Math.random() - 0.5) * 150;
-    const rot = (Math.random() - 0.5) * 360;
-    const dur = Math.random() * 5 + 6;
+    const left = Math.random() * 80 + 10;
+    const size = Math.random() * 20 + 14;
+    const drift = (Math.random() - 0.5) * 60;
+    const rot = (Math.random() - 0.5) * 180;
+    const dur = Math.random() * 4 + 6;
     book.style.left = `${left}%`;
     book.style.width = `${size}px`;
     book.style.height = `${size}px`;
     book.style.setProperty('--random-x', `${drift}px`);
     book.style.setProperty('--random-rot', `${rot}deg`);
-    book.style.setProperty('--random-scale', `${Math.random() * 0.7 + 0.6}`);
+    book.style.setProperty('--random-scale', `${Math.random() * 0.5 + 0.7}`);
     book.style.animationDuration = `${dur}s`;
     booksContainer.appendChild(book);
     setTimeout(() => book.remove(), dur * 1000);
 }
-setInterval(createFloatingBook, 800);
+setInterval(createFloatingBook, 1200);
 
 // Pending room state for invite modal
 let pendingInviteRoom = null;

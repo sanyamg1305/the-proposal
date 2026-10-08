@@ -10,7 +10,7 @@ let realtimeChannel = null;
 const booksContainer = document.getElementById('books-container');
 
 function createFloatingBook() {
-    if (!booksContainer) return;
+    if (!booksContainer || booksContainer.children.length >= 10) return;
 
     const book = document.createElement('div');
     book.classList.add('floating-book');
@@ -21,11 +21,11 @@ function createFloatingBook() {
         </svg>
     `;
 
-    const leftPosition = Math.random() * 100;
-    const size = Math.random() * 24 + 12;
-    const drift = (Math.random() - 0.5) * 150;
-    const rotation = (Math.random() - 0.5) * 360;
-    const duration = Math.random() * 5 + 5;
+    const leftPosition = Math.random() * 80 + 10;
+    const size = Math.random() * 20 + 14;
+    const drift = (Math.random() - 0.5) * 60;
+    const rotation = (Math.random() - 0.5) * 180;
+    const duration = Math.random() * 4 + 6;
 
     book.style.left = `${leftPosition}%`;
     book.style.width = `${size}px`;
@@ -33,7 +33,7 @@ function createFloatingBook() {
 
     book.style.setProperty('--random-x', `${drift}px`);
     book.style.setProperty('--random-rot', `${rotation}deg`);
-    book.style.setProperty('--random-scale', `${Math.random() * 0.7 + 0.6}`);
+    book.style.setProperty('--random-scale', `${Math.random() * 0.5 + 0.7}`);
     book.style.animationDuration = `${duration}s`;
 
     booksContainer.appendChild(book);
@@ -43,7 +43,7 @@ function createFloatingBook() {
     }, duration * 1000);
 }
 
-setInterval(createFloatingBook, 600);
+setInterval(createFloatingBook, 1200);
 
 // Starter items (including one-time wishes & recurring rituals)
 const STARTER_ITEMS = [

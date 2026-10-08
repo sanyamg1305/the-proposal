@@ -52,20 +52,49 @@
   box-shadow: 2px 2px 0px 0px rgba(36, 59, 143, 0.3);
 }
 
+html {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+body {
+  overflow-x: hidden;
+  width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Floating background books container (completely isolated from page layout) */
+#books-container {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+  contain: strict !important;
+}
+
 /* Floating background books styling */
 .floating-book {
   position: absolute;
   bottom: -40px;
-  color: rgba(36, 59, 143, 0.12); /* transparent navy blue */
+  color: rgba(36, 59, 143, 0.10); /* transparent navy blue */
   user-select: none;
   pointer-events: none;
   z-index: 0;
   animation: floatUp 7s linear forwards;
+  will-change: transform, opacity;
+  contain: layout paint;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 @keyframes floatUp {
   0% {
-    transform: translateY(0) translateX(0) scale(0.6) rotate(0deg);
+    transform: translate3d(0, 0, 0) scale(0.6) rotate(0deg);
     opacity: 0;
   }
   15% {
@@ -75,7 +104,7 @@
     opacity: 0.8;
   }
   100% {
-    transform: translateY(-110vh) translateX(var(--random-x)) scale(var(--random-scale)) rotate(var(--random-rot));
+    transform: translate3d(var(--random-x), -115vh, 0) scale(var(--random-scale)) rotate(var(--random-rot));
     opacity: 0;
   }
 }

@@ -20,7 +20,7 @@ function nextCard(cardNumber) {
 const booksContainer = document.getElementById('books-container');
 
 function createFloatingBook() {
-  if (!booksContainer) return;
+  if (!booksContainer || booksContainer.children.length >= 10) return;
 
   const book = document.createElement('div');
   book.classList.add('floating-book');
@@ -32,12 +32,12 @@ function createFloatingBook() {
     </svg>
   `;
 
-  // Random positions, rotation, sizes, and speed
-  const leftPosition = Math.random() * 100; // 0% to 100% of viewport width
-  const size = Math.random() * 24 + 12;      // 12px to 36px
-  const drift = (Math.random() - 0.5) * 150; // horizontal drift direction
-  const rotation = (Math.random() - 0.5) * 360; // rotation amount
-  const duration = Math.random() * 5 + 5;     // 5s to 10s animation duration
+  // Safe interior horizontal positions, rotation, sizes, and speed to avoid horizontal overflow
+  const leftPosition = Math.random() * 80 + 10; // 10% to 90% of viewport
+  const size = Math.random() * 20 + 14;         // 14px to 34px
+  const drift = (Math.random() - 0.5) * 60;     // subtle drift ±30px
+  const rotation = (Math.random() - 0.5) * 180; // subtle rotation
+  const duration = Math.random() * 4 + 6;       // 6s to 10s animation duration
 
   book.style.left = `${leftPosition}%`;
   book.style.width = `${size}px`;
@@ -46,7 +46,7 @@ function createFloatingBook() {
   // Inject custom CSS variables to feed keyframe calculations in style.css
   book.style.setProperty('--random-x', `${drift}px`);
   book.style.setProperty('--random-rot', `${rotation}deg`);
-  book.style.setProperty('--random-scale', `${Math.random() * 0.7 + 0.6}`);
+  book.style.setProperty('--random-scale', `${Math.random() * 0.5 + 0.7}`);
   
   book.style.animationDuration = `${duration}s`;
 
@@ -59,7 +59,7 @@ function createFloatingBook() {
 }
 
 // Periodically spawn floating books in background
-setInterval(createFloatingBook, 500);
+setInterval(createFloatingBook, 1200);
 
 // Runaway "No" button logic
 const noBtn = document.getElementById('no-btn');
