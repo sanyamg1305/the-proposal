@@ -20,10 +20,14 @@ create table if not exists public.sequence_games (
     last_move jsonb,
     winner text default null,
     reactions jsonb default '[]'::jsonb,
+    locked_chips jsonb default '[]'::jsonb,
     status text not null default 'waiting',
     created_at timestamp with time zone default timezone('utc'::text, now()) not null,
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
+
+-- Ensure locked_chips column exists if table was previously created
+alter table public.sequence_games add column if not exists locked_chips jsonb default '[]'::jsonb;
 
 -- Enable RLS & open policies for players
 alter table public.sequence_games enable row level security;

@@ -35,6 +35,48 @@ let selectedCardIndex = null;
 let realtimeChannel = null;
 let localGameState = null;
 
+// HTML5 BroadcastChannel for immediate cross-tab synchronization
+let localBroadcastChannel = null;
+try {
+    if (typeof BroadcastChannel !== 'undefined') {
+        localBroadcastChannel = new BroadcastChannel('sequence_board_sync');
+        localBroadcastChannel.onmessage = (event) => {
+            if (event.data && event.data.roomId === activeRoomId) {
+                if (event.data.state) {
+                    handleRemoteGameUpdate(event.data.state);
+                } else if (event.data.reaction && event.data.reaction.emoji) {
+                    showFloatingReaction(event.data.reaction.emoji, false);
+                }
+            }
+        };
+    }
+} catch (e) {}
+
+// Sanitize game state for Supabase Postgres table schema (avoids schema mismatch errors)
+function getSanitizedDbState(state) {
+    return {
+        id: state.id,
+        board: state.board,
+        deck: state.deck,
+        discard_pile: state.discard_pile || [],
+        player1_id: state.player1_id || 'Sanyam',
+        player2_id: state.player2_id || 'Himi',
+        player1_hand: state.player1_hand || [],
+        player2_hand: state.player2_hand || [],
+        current_turn: state.current_turn || 'player1',
+        target_sequences: state.target_sequences || 2,
+        player1_sequences: state.player1_sequences || 0,
+        player2_sequences: state.player2_sequences || 0,
+        completed_sequences: state.completed_sequences || [],
+        last_move: state.last_move || null,
+        winner: state.winner || null,
+        reactions: state.reactions || [],
+        status: state.status || 'active',
+        created_at: state.created_at || new Date().toISOString(),
+        updated_at: new Date().toISOString()
+    };
+}
+
 // Web Audio API Sound Synthesizer (Zero external dependencies)
 let audioCtx = null;
 function getAudioContext() {
@@ -202,7 +244,12 @@ function dismissInviteModal() {
 
 // In-Game Role Switcher
 function togglePlayerRole() {
-    myRole = (myRole === 'player1') ? 'player2' : 'player1';
+    if (gameMode === 'pass_and_play' && localGameState) {
+        localGameState.current_turn = (localGameState.current_turn === 'player1') ? 'player2' : 'player1';
+        myRole = localGameState.current_turn;
+    } else {
+        myRole = (myRole === 'player1') ? 'player2' : 'player1';
+    }
     localStorage.setItem('sequence_player_role', myRole);
     updateRoleSelectionUI();
     if (localGameState) {
@@ -364,6 +411,7 @@ function createInitialGameState(roomId, targetSeq = 2) {
 // Start Game Modes
 function joinPresetRoom(roomId) {
     activeRoomId = roomId.toUpperCase();
+    sessionStorage.setItem('sequence_joined_session_' + activeRoomId, 'true');
     gameMode = 'online';
     startRoomSession(activeRoomId);
 }
@@ -378,15 +426,26 @@ function startSinglePlayerAI() {
     activeRoomId = 'AI-' + Date.now().toString().slice(-4);
     gameMode = 'ai';
     localGameState = createInitialGameState(activeRoomId, targetSequencesRule);
-    myRole = 'player1'; // You play as Sanyam (or player1)
+    selectedCardIndex = null;
+    localGameState.current_turn = 'player1'; // official rules: player1 opens the game
     renderActiveGame();
+    if (myRole === 'player1') {
+        showActionPrompt("🤖 Solo vs AI! You are Sanyam 🔵 — select a card from your hand below.");
+    } else {
+        showActionPrompt("🤖 Solo vs AI! You are Himi 🌸 — Sanyam AI plays first!");
+        setTimeout(runAITurn, 900);
+    }
 }
 
 function startPassAndPlay() {
     activeRoomId = 'LOCAL-' + Date.now().toString().slice(-4);
     gameMode = 'pass_and_play';
     localGameState = createInitialGameState(activeRoomId, targetSequencesRule);
+    myRole = 'player1';
+    localGameState.current_turn = 'player1';
+    selectedCardIndex = null;
     renderActiveGame();
+    showActionPrompt("👥 Pass & Play Mode! Sanyam plays first — select a card from hand below.");
 }
 
 // Start Room Session (Online Cross-Device)
@@ -413,68 +472,67 @@ async function startRoomSession(roomId) {
         }
     }
 
-    // 2. If room does not exist, initialize a new game state and save
+    // 2. Fallback to localStorage if Supabase has no record or offline
+    if (!state) {
+        try {
+            const savedLocal = localStorage.getItem(`sequence_game_${roomId}`);
+            if (savedLocal) {
+                const parsed = JSON.parse(savedLocal);
+                if (parsed && parsed.board) {
+                    state = parsed;
+                }
+            }
+        } catch (e) {}
+    }
+
+    // 3. If room does not exist, initialize a new game state and save
     if (!state) {
         state = createInitialGameState(roomId, targetSequencesRule);
         if (client) {
             try {
-                await client.from('sequence_games').upsert(state);
+                const dbPayload = getSanitizedDbState(state);
+                const { error } = await client.from('sequence_games').upsert(dbPayload);
+                if (error) console.warn('Upsert initial game error:', error.message || error);
             } catch (err) {
-                console.warn('Upsert initial game error:', err);
+                console.warn('Upsert initial game exception:', err);
             }
         }
     } else {
-        // If state exists: ensure target_sequences is valid (defaults to 2)
+        // Ensure target sequences is valid
         if (!state.target_sequences || state.target_sequences < 1) {
             state.target_sequences = targetSequencesRule || 2;
         }
 
-        // Recalculate sequences with official Sequence rules to clear premature false wins
-        if (state.board) {
-            const p1Seqs = findSequencesForPlayer(state.board, 'player1');
-            const p2Seqs = findSequencesForPlayer(state.board, 'player2');
-            state.player1_sequences = p1Seqs.length;
-            state.player2_sequences = p2Seqs.length;
+        // Recalculate sequences and locked chips with official Sequence rules
+        updateGameStateSequences(state);
 
-            const target = state.target_sequences || 2;
-            if (state.player1_sequences >= target) {
-                state.winner = 'player1';
-                state.status = 'finished';
-            } else if (state.player2_sequences >= target) {
-                state.winner = 'player2';
-                state.status = 'finished';
-            } else {
-                // If it was prematurely marked as finished by the 6-in-a-row bug: resume game!
-                if (state.winner) {
-                    state.winner = null;
-                    state.status = 'active';
-                    if (client) {
-                        try {
-                            await client.from('sequence_games').update({
-                                winner: null,
-                                status: 'active',
-                                player1_sequences: state.player1_sequences,
-                                player2_sequences: state.player2_sequences
-                            }).eq('id', roomId);
-                        } catch (e) {}
-                    }
-                }
-            }
+        if (client && state.status === 'active' && !state.winner) {
+            try {
+                const dbPayload = getSanitizedDbState(state);
+                await client.from('sequence_games').upsert(dbPayload);
+            } catch (e) {}
         }
     }
 
     localGameState = state;
 
-    // 3. Setup Realtime Channel (Broadcast + Database Changes)
-    setupRoomRealtime(roomId, client);
+    // 4. Setup Realtime Channel or fallback pill
+    if (client) {
+        setupRoomRealtime(roomId, client);
+    } else {
+        const dot = document.getElementById('connection-dot');
+        const text = document.getElementById('connection-text');
+        if (dot) dot.className = 'w-2 h-2 rounded-full bg-amber-400';
+        if (text) text.textContent = 'Local / P2P Mode';
+    }
 
-    // 4. Update URL without page reload for easy copying
+    // 5. Update URL without page reload for easy sharing
     try {
         const newUrl = window.location.pathname + '?room=' + encodeURIComponent(roomId);
         window.history.replaceState({ room: roomId }, '', newUrl);
     } catch (e) {}
 
-    // 5. Render Game Arena
+    // 6. Render Game Arena
     renderActiveGame();
 }
 
@@ -550,6 +608,9 @@ function handleRemoteGameUpdate(newState) {
         }
     }
 
+    // Ensure sequences and locked chips are consistently updated
+    updateGameStateSequences(newState);
+
     // Check if new sequence was completed
     if (localGameState && (newState.player1_sequences > localGameState.player1_sequences || newState.player2_sequences > localGameState.player2_sequences)) {
         playSequenceFanfare();
@@ -561,9 +622,14 @@ function handleRemoteGameUpdate(newState) {
     renderHands();
     updateScoreboard();
 
-    // Check winner
+    // Check winner or update action prompt
     if (newState.winner) {
         showVictoryModal(newState.winner);
+    } else if (isCurrentPlayerTurn()) {
+        showActionPrompt("🎯 Your turn! Select a card from your hand below.");
+    } else {
+        const oppName = myRole === 'player1' ? 'Himi 🌸' : 'Sanyam 🔵';
+        showActionPrompt(`💭 Waiting for ${oppName} to play...`);
     }
 }
 
@@ -737,11 +803,12 @@ function renderHands() {
     const roleLabel = document.getElementById('your-role-label');
     const chipPreview = document.getElementById('your-chip-preview');
     const oppLabel = document.getElementById('opponent-name-label');
-    if (roleLabel) roleLabel.textContent = myRole === 'player1' ? 'Sanyam (Blue 🔵)' : 'Himi (Pink 🌸)';
+    const currentActiveRole = gameMode === 'pass_and_play' ? localGameState.current_turn : myRole;
+    if (roleLabel) roleLabel.textContent = currentActiveRole === 'player1' ? 'Sanyam (Blue 🔵)' : 'Himi (Pink 🌸)';
     if (chipPreview) {
-        chipPreview.className = myRole === 'player1' ? 'w-4 h-4 rounded-full bg-player1Color inline-block shadow' : 'w-4 h-4 rounded-full bg-player2Color inline-block shadow';
+        chipPreview.className = currentActiveRole === 'player1' ? 'w-4 h-4 rounded-full bg-player1Color inline-block shadow' : 'w-4 h-4 rounded-full bg-player2Color inline-block shadow';
     }
-    if (oppLabel) oppLabel.textContent = myRole === 'player1' ? 'Himi 🌸:' : 'Sanyam 🔵:';
+    if (oppLabel) oppLabel.textContent = currentActiveRole === 'player1' ? 'Himi 🌸:' : 'Sanyam 🔵:';
 }
 
 // Create Card DOM Element for Hand
@@ -812,10 +879,11 @@ async function handleDeadCardSwap(cardIndex) {
 
     const currentHand = getCurrentPlayerHand();
     const deadCard = currentHand[cardIndex];
+    const activePlayer = gameMode === 'pass_and_play' ? localGameState.current_turn : myRole;
 
     // Discard dead card
     localGameState.discard_pile.unshift({
-        player: myRole,
+        player: activePlayer,
         card: deadCard,
         type: 'dead_swap',
         timestamp: new Date().toISOString()
@@ -877,20 +945,22 @@ async function handleBoardCellClick(r, c) {
     const isLocked = lockedSet.has(`${r},${c}`);
     const isCorner = cellCard === 'CORNER';
 
+    const activePlayer = gameMode === 'pass_and_play' ? localGameState.current_turn : myRole;
+    const opponentRole = activePlayer === 'player1' ? 'player2' : 'player1';
+
     let moveValid = false;
     let moveType = 'place';
 
     // 1. Two-Eyed Jack (Wild)
     if (isTwoEyedJack(cardCode)) {
         if (!currentOccupant && !isCorner) {
-            localGameState.board[r][c] = myRole;
+            localGameState.board[r][c] = activePlayer;
             moveValid = true;
             playChipSound();
         }
     }
     // 2. One-Eyed Jack (Remover)
     else if (isOneEyedJack(cardCode)) {
-        const opponentRole = myRole === 'player1' ? 'player2' : 'player1';
         if (currentOccupant === opponentRole && !isLocked) {
             localGameState.board[r][c] = null;
             moveValid = true;
@@ -904,7 +974,7 @@ async function handleBoardCellClick(r, c) {
     // 3. Regular Card
     else {
         if (cellCard === cardCode && !currentOccupant) {
-            localGameState.board[r][c] = myRole;
+            localGameState.board[r][c] = activePlayer;
             moveValid = true;
             playChipSound();
         }
@@ -918,7 +988,7 @@ async function handleBoardCellClick(r, c) {
     // Move is valid! Update game state
     // Discard played card
     localGameState.discard_pile.unshift({
-        player: myRole,
+        player: activePlayer,
         card: cardCode,
         row: r,
         col: c,
@@ -937,7 +1007,7 @@ async function handleBoardCellClick(r, c) {
 
     // Record last move
     localGameState.last_move = {
-        player: myRole,
+        player: activePlayer,
         card: cardCode,
         row: r,
         col: c,
@@ -949,10 +1019,15 @@ async function handleBoardCellClick(r, c) {
 
     // Switch turn (unless game won)
     if (!localGameState.winner) {
-        localGameState.current_turn = myRole === 'player1' ? 'player2' : 'player1';
+        localGameState.current_turn = opponentRole;
     }
 
     localGameState.updated_at = new Date().toISOString();
+
+    // In pass and play, align myRole with next player's turn
+    if (gameMode === 'pass_and_play') {
+        myRole = localGameState.current_turn;
+    }
 
     // Persist & Broadcast
     await persistAndBroadcastGameState(localGameState);
@@ -961,52 +1036,66 @@ async function handleBoardCellClick(r, c) {
     renderHands();
     updateScoreboard();
 
-    // Check winner celebration
+    // Contextual feedback in prompt
     if (localGameState.winner) {
         showVictoryModal(localGameState.winner);
-    } else if (gameMode === 'ai' && localGameState.current_turn === 'player2') {
-        // Trigger AI Turn
-        setTimeout(runAITurn, 900);
     } else if (gameMode === 'pass_and_play') {
-        // Switch role for next player
-        myRole = localGameState.current_turn;
-        renderHands();
-        renderBoard();
+        const nextPlayerName = localGameState.current_turn === 'player1' ? 'Sanyam 🔵' : 'Himi 🌸';
+        showActionPrompt(`✅ Chip placed! Pass device to ${nextPlayerName} — select a card from hand below.`);
+    } else if (gameMode === 'ai') {
+        const aiRole = myRole === 'player1' ? 'player2' : 'player1';
+        if (localGameState.current_turn === aiRole) {
+            showActionPrompt("✅ Chip placed! 🤖 AI Bot is thinking...");
+            setTimeout(runAITurn, 900);
+        } else {
+            showActionPrompt("Select a card from your hand below to see matching board spaces!");
+        }
+    } else {
+        if (localGameState.current_turn === myRole) {
+            showActionPrompt("Select a card from your hand below to see matching board spaces!");
+        } else {
+            const oppName = myRole === 'player1' ? 'Himi 🌸' : 'Sanyam 🔵';
+            showActionPrompt(`✅ Chip placed! 💭 Waiting for ${oppName} to make a move...`);
+        }
     }
 }
 
-// Sequence Detection Engine
-function checkAndAwardSequences() {
-    const board = localGameState.board;
-    const p1Seqs = findSequencesForPlayer(board, 'player1');
-    const p2Seqs = findSequencesForPlayer(board, 'player2');
+// Sequence Detection Engine & State Sync
+function updateGameStateSequences(state) {
+    if (!state || !state.board) return;
+    const p1Seqs = findSequencesForPlayer(state.board, 'player1');
+    const p2Seqs = findSequencesForPlayer(state.board, 'player2');
 
-    localGameState.player1_sequences = p1Seqs.length;
-    localGameState.player2_sequences = p2Seqs.length;
+    state.player1_sequences = p1Seqs.length;
+    state.player2_sequences = p2Seqs.length;
+    state.completed_sequences = [...p1Seqs, ...p2Seqs];
 
-    // Collect all locked chips from completed sequences
     const allLocked = new Set();
-    [...p1Seqs, ...p2Seqs].forEach(seq => {
+    state.completed_sequences.forEach(seq => {
         seq.coords.forEach(([r, c]) => {
-            if (SEQUENCE_BOARD_LAYOUT[r][c] !== 'CORNER') {
+            if (!isCornerSpace(r, c)) {
                 allLocked.add(`${r},${c}`);
             }
         });
     });
-    localGameState.locked_chips = Array.from(allLocked);
+    state.locked_chips = Array.from(allLocked);
 
-    // Check win condition (Official Sequence requires target sequences, default 2)
-    const target = localGameState.target_sequences || 2;
-    if (localGameState.player1_sequences >= target) {
-        localGameState.winner = 'player1';
-        localGameState.status = 'finished';
-    } else if (localGameState.player2_sequences >= target) {
-        localGameState.winner = 'player2';
-        localGameState.status = 'finished';
+    const target = state.target_sequences || 2;
+    if (state.player1_sequences >= target) {
+        state.winner = 'player1';
+        state.status = 'finished';
+    } else if (state.player2_sequences >= target) {
+        state.winner = 'player2';
+        state.status = 'finished';
     } else {
-        localGameState.winner = null;
-        localGameState.status = 'active';
+        state.winner = null;
+        state.status = 'active';
     }
+}
+
+function checkAndAwardSequences() {
+    if (!localGameState) return;
+    updateGameStateSequences(localGameState);
 }
 
 // Helper: check if coordinate is a board corner space
@@ -1148,15 +1237,17 @@ function findSequencesForPlayer(board, player) {
     return getMaxMutuallyCompatibleSequences(candidates);
 }
 
-// AI Player Logic (Play vs Sanyam AI or Himi AI)
+// AI Player Logic (Dynamic human vs AI)
 async function runAITurn() {
     if (!localGameState || localGameState.winner) return;
 
-    const aiRole = 'player2';
-    const opponentRole = 'player1';
-    const hand = localGameState.player2_hand;
+    const humanRole = myRole || 'player1';
+    const aiRole = humanRole === 'player1' ? 'player2' : 'player1';
+    const opponentRole = humanRole;
+    const hand = aiRole === 'player1' ? localGameState.player1_hand : localGameState.player2_hand;
     const board = localGameState.board;
     const lockedSet = new Set(localGameState.locked_chips || []);
+    const aiName = aiRole === 'player1' ? 'Sanyam AI 🔵' : 'Himi AI 🌸';
 
     // 1. Check if AI holds any dead card; if so, swap it first!
     for (let i = 0; i < hand.length; i++) {
@@ -1170,7 +1261,7 @@ async function runAITurn() {
             });
             const drawn = drawCardFromDeck();
             if (drawn) hand[i] = drawn;
-            showActionPrompt(`🤖 AI swapped a dead card (${deadCard})!`);
+            showActionPrompt(`🤖 ${aiName} swapped a dead card (${deadCard})!`);
             break;
         }
     }
@@ -1233,11 +1324,11 @@ async function runAITurn() {
         if (bestMove.type === 'remove') {
             localGameState.board[bestMove.r][bestMove.c] = null;
             playRemoveSound();
-            showActionPrompt(`🤖 AI used One-Eyed Jack! Removed chip at [${bestMove.r + 1}, ${bestMove.c + 1}] 😱`);
+            showActionPrompt(`🤖 ${aiName} used One-Eyed Jack! Removed chip at [${bestMove.r + 1}, ${bestMove.c + 1}] 😱`);
         } else {
             localGameState.board[bestMove.r][bestMove.c] = aiRole;
             playChipSound();
-            showActionPrompt(`🤖 AI played ${cardCode} at [${bestMove.r + 1}, ${bestMove.c + 1}] ✨`);
+            showActionPrompt(`🤖 ${aiName} played ${cardCode} at [${bestMove.r + 1}, ${bestMove.c + 1}] ✨`);
         }
 
         localGameState.discard_pile.unshift({
@@ -1266,7 +1357,7 @@ async function runAITurn() {
         };
 
         checkAndAwardSequences();
-        localGameState.current_turn = 'player1';
+        localGameState.current_turn = humanRole;
         localGameState.updated_at = new Date().toISOString();
 
         renderBoard();
@@ -1345,19 +1436,30 @@ async function persistAndBroadcastGameState(state) {
         }
     }
 
-    // 2. Persist to Supabase Database table
+    // 2. Broadcast via local HTML5 BroadcastChannel for instant cross-tab sync
+    if (localBroadcastChannel && activeRoomId) {
+        try {
+            localBroadcastChannel.postMessage({ roomId: activeRoomId, state });
+        } catch (e) {}
+    }
+
+    // 3. Persist to Supabase Database table using sanitized schema payload
     if (gameMode === 'online') {
         try {
             const client = await getSupabaseClient();
             if (client) {
-                await client.from('sequence_games').upsert(state);
+                const dbPayload = getSanitizedDbState(state);
+                const { error } = await client.from('sequence_games').upsert(dbPayload);
+                if (error) {
+                    console.warn('Supabase DB upsert error:', error.message || error);
+                }
             }
         } catch (err) {
-            console.warn('Supabase DB upsert error:', err);
+            console.warn('Supabase DB upsert exception:', err);
         }
     }
 
-    // 3. Save to localStorage fallback
+    // 4. Save to localStorage fallback
     try {
         localStorage.setItem(`sequence_game_${activeRoomId}`, JSON.stringify(state));
     } catch (e) {}
@@ -1375,6 +1477,12 @@ function sendLiveReaction(emoji) {
                 event: 'reaction',
                 payload: { emoji, player: myRole }
             });
+        } catch (e) {}
+    }
+
+    if (localBroadcastChannel && activeRoomId) {
+        try {
+            localBroadcastChannel.postMessage({ roomId: activeRoomId, reaction: { emoji, player: myRole } });
         } catch (e) {}
     }
 }
@@ -1430,9 +1538,19 @@ function updateScoreboard() {
         if (localGameState.winner) {
             turnBanner.className = 'text-xs sm:text-sm font-black px-4 py-1 rounded-full bg-emerald-500 text-white shadow-sm';
             turnBanner.textContent = localGameState.winner === 'player1' ? 'Sanyam Won! 🏆' : 'Himi Won! 🏆';
+        } else if (gameMode === 'pass_and_play') {
+            const isP1 = localGameState.current_turn === 'player1';
+            turnBanner.className = isP1
+                ? 'text-xs sm:text-sm font-black px-4 py-1 rounded-full bg-blue-100 text-blue-950 border border-blue-400 shadow-sm animate-pulse'
+                : 'text-xs sm:text-sm font-black px-4 py-1 rounded-full bg-pink-100 text-pink-950 border border-pink-400 shadow-sm animate-pulse';
+            turnBanner.textContent = isP1 ? "🎯 Sanyam's Turn 🔵 (Pass & Play)" : "🎯 Himi's Turn 🌸 (Pass & Play)";
         } else if (isCurrentPlayerTurn()) {
             turnBanner.className = 'text-xs sm:text-sm font-black px-4 py-1 rounded-full bg-emerald-200 text-emerald-950 border border-emerald-400 shadow-sm animate-pulse';
             turnBanner.textContent = '🎯 Your Turn! Play a card';
+        } else if (gameMode === 'ai') {
+            const aiName = myRole === 'player1' ? 'Himi AI 🌸' : 'Sanyam AI 🔵';
+            turnBanner.className = 'text-xs sm:text-sm font-black px-4 py-1 rounded-full bg-amber-100 text-amber-950 border border-amber-300 shadow-sm animate-pulse';
+            turnBanner.textContent = `🤖 ${aiName} is thinking...`;
         } else {
             const oppName = myRole === 'player1' ? 'Himi' : 'Sanyam';
             turnBanner.className = 'text-xs sm:text-sm font-black px-4 py-1 rounded-full bg-amber-100 text-amber-950 border border-amber-300 shadow-sm';
@@ -1535,6 +1653,7 @@ function confirmExitGame() {
     document.getElementById('game-lobby').classList.remove('hidden');
     selectedCardIndex = null;
     activeRoomId = null;
+    showActionPrompt("Select a card from your hand below to see matching board spaces!");
     try {
         window.history.replaceState({}, '', window.location.pathname);
     } catch (e) {}
