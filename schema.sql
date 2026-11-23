@@ -154,8 +154,13 @@ create table if not exists public.sequence_games (
     updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Ensure locked_chips column exists if table was previously created
+-- Ensure all sequence_games columns exist if table was previously created with an older schema
+alter table public.sequence_games add column if not exists player1_sequences integer not null default 0;
+alter table public.sequence_games add column if not exists player2_sequences integer not null default 0;
+alter table public.sequence_games add column if not exists target_sequences integer not null default 2;
+alter table public.sequence_games add column if not exists completed_sequences jsonb not null default '[]'::jsonb;
 alter table public.sequence_games add column if not exists locked_chips jsonb default '[]'::jsonb;
+alter table public.sequence_games add column if not exists reactions jsonb default '[]'::jsonb;
 
 alter table public.sequence_games enable row level security;
 
