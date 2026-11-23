@@ -131,10 +131,10 @@ setInterval(createFloatingItem, 900);
 // 3. Card Navigation & Stepper
 // ------------------------------------------------------------------------------
 function goToCard(cardIndex) {
-    if (cardIndex < 1 || cardIndex > 6) return;
+    if (cardIndex < 1 || cardIndex > 4) return;
 
-    // Hide all cards
-    for (let i = 1; i <= 6; i++) {
+    // Hide all cards (1: Intro, 2: Letter, 3: Forgiveness, 4: Celebration)
+    for (let i = 1; i <= 4; i++) {
         const card = document.getElementById(`sorry-card-${i}`);
         if (card) card.classList.add('hidden');
     }
@@ -145,14 +145,14 @@ function goToCard(cardIndex) {
         targetCard.classList.remove('hidden');
     }
 
-    // Update Stepper Pills
-    for (let i = 1; i <= 5; i++) {
+    // Update Stepper Pills (1, 2, 3)
+    for (let i = 1; i <= 3; i++) {
         const pill = document.getElementById(`step-pill-${i}`);
         if (pill) {
-            if (i === cardIndex || (cardIndex === 6 && i === 5)) {
-                pill.className = 'step-pill active text-[11px] sm:text-xs font-extrabold px-3 py-1 rounded-full border-2 border-customAccent bg-customAccent text-customBg transition-all shadow-[2px_2px_0px_0px_rgba(36,59,143,0.3)]';
+            if (i === cardIndex || (cardIndex === 4 && i === 3)) {
+                pill.className = 'step-pill active text-xs font-extrabold px-3.5 py-1 rounded-full border-2 border-customAccent bg-customAccent text-customBg transition-all shadow-[2px_2px_0px_0px_rgba(36,59,143,0.3)]';
             } else {
-                pill.className = 'step-pill text-[11px] sm:text-xs font-extrabold px-3 py-1 rounded-full border-2 border-customAccent bg-white text-customAccent transition-all shadow-xs hover:bg-amber-50';
+                pill.className = 'step-pill text-xs font-extrabold px-3.5 py-1 rounded-full border-2 border-customAccent bg-white text-customAccent transition-all shadow-xs hover:bg-amber-50';
             }
         }
     }
@@ -163,52 +163,12 @@ function goToCard(cardIndex) {
 }
 
 // ------------------------------------------------------------------------------
-// 4. Claim Peace Offerings
-// ------------------------------------------------------------------------------
-function claimPeaceTreat(element, treatTitle) {
-    if (!element) return;
-
-    const isClaimed = element.classList.contains('claimed');
-    const badge = element.querySelector('.claim-badge');
-
-    if (isClaimed) {
-        // Unclaim
-        element.classList.remove('claimed', 'bg-emerald-50', 'border-emerald-600');
-        element.classList.add('bg-white', 'border-customAccent');
-        if (badge) {
-            badge.className = 'claim-badge text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-amber-100 text-amber-950 border border-amber-300';
-            badge.textContent = 'Claim 🎁';
-        }
-        claimedTreats.delete(treatTitle);
-        playBoop();
-    } else {
-        // Claim
-        element.classList.add('claimed', 'bg-emerald-50', 'border-emerald-600');
-        element.classList.remove('bg-white', 'border-customAccent');
-        if (badge) {
-            badge.className = 'claim-badge text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-emerald-600 text-white border border-emerald-700 shadow-xs animate-bounce';
-            badge.textContent = 'Claimed! ✅';
-        }
-        claimedTreats.add(treatTitle);
-        playSuccessChime();
-        triggerMiniConfetti();
-    }
-
-    // Update count display
-    const counterEl = document.getElementById('claimed-count-num');
-    if (counterEl) {
-        counterEl.textContent = claimedTreats.size;
-    }
-}
-
-// ------------------------------------------------------------------------------
-// 5. Playful "Nope" Button Dodging
+// 4. Playful "Nope" Button Dodging
 // ------------------------------------------------------------------------------
 const DODGE_RESPONSES = [
     { text: "Wait! What if I throw in extra ice cream? 🍦🥺", emoji: "🥺" },
     { text: "Please don't stay mad at your favorite idiot! 🙈", emoji: "🙈" },
-    { text: "Chef Sanyam kitchen takeover on demand! 🍳", emoji: "🍳" },
-    { text: "Unlimited warm hugs & zero nagging forever! 🫂", emoji: "🫂" },
+    { text: "I promise unlimited warm hugs! 🫂", emoji: "🫂" },
     { text: "Look at this face 🥺👉👈 How can you resist?", emoji: "🥺" },
     { text: "Okay, the button is shrinking... you have to say yes! 😂", emoji: "😂" },
     { text: "Come on Himi, you know you love me! ❤️", emoji: "❤️" }
@@ -250,25 +210,19 @@ function dodgeNoButton() {
 }
 
 // ------------------------------------------------------------------------------
-// 6. Celebrate Forgiveness
+// 5. Celebrate Forgiveness
 // ------------------------------------------------------------------------------
 function celebrateForgiveness() {
     playCelebrationFanfare();
     triggerMegaConfetti();
-    goToCard(6);
+    goToCard(4);
 }
 
 // ------------------------------------------------------------------------------
-// 7. WhatsApp Quick Message
+// 6. WhatsApp Quick Message
 // ------------------------------------------------------------------------------
 function sendForgivenessWhatsApp() {
-    const claimedList = Array.from(claimedTreats);
-    let extraText = '';
-    if (claimedList.length > 0) {
-        extraText = ` I've also officially claimed my peace offerings: ${claimedList.join(', ')}! 🎁`;
-    }
-
-    const message = `Hey Sanyam 🥰 I read your sorry letter... and yes, I forgive you! ❤️ But you owe me big time!${extraText} See you soon! 🍦🏖️`;
+    const message = `Hey Sanyam 🥰 I read your sorry letter... and yes, I forgive you! ❤️ But you still owe me ice cream! See you soon! 🍦🏖️`;
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
 }
